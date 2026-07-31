@@ -25,7 +25,16 @@ export const config = {
     city: process.env.TDX_CITY ?? 'Taipei',
   },
   port: num('PORT', 8080),
-  pollIntervalMs: num('POLL_INTERVAL_MS', 15_000),
+
+  /**
+   * 動態資料拉取間隔。
+   *
+   * 預設 30 秒是依實測配額（每 30 秒 5 次）反推的：每輪拉 A1 + N1 共 2 次，
+   * 30 秒間隔在任一 30 秒窗口內最多 4 次呼叫，剛好在配額內且留有餘裕。
+   *
+   * 拉更快沒有意義——TDX 動態資料官方更新頻率為每分鐘。
+   */
+  pollIntervalMs: num('POLL_INTERVAL_MS', 30_000),
   cacheMaxAgeSec: num('CACHE_MAX_AGE_SEC', 15),
 
   /// 視野模式的預設車輛數上限，與 iOS 端 LiveBusStore.viewportLimit 一致

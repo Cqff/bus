@@ -1,5 +1,6 @@
 import { config } from '../config.ts';
 import { getAccessToken, resetToken } from './auth.ts';
+import { acquireSlot } from './pacer.ts';
 import type {
   TDXRealTimeByFrequency,
   TDXEstimatedTimeOfArrival,
@@ -79,6 +80,9 @@ function buildUrl(path: string, params?: Record<string, string>): string {
 }
 
 async function authorizedFetch(url: URL): Promise<Response> {
+  // 節流必須在這裡——這是所有 TDX 請求的唯一出口。
+  // 實測配額只有每 30 秒 5 次，靠各呼叫端自律是不可靠的。
+  await acquireSlot();
   const token = await getAccessToken();
   return fetch(url, {
     headers: {

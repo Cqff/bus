@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { config } from './config.ts';
 import { liveCache } from './cache/liveCache.ts';
 import { staticStore } from './static/staticStore.ts';
+import { pacerStats, warnIfPollTooFast } from './tdx/pacer.ts';
 import {
   ApiError,
   parseBBox,
@@ -79,6 +80,13 @@ function health(res: ServerResponse): void {
       ready: staticStore.isReady,
       version: staticStore.version,
       builtAt: staticStore.builtAt,
+    },
+    // TDX 配額吃緊（每 30 秒 5 次），把節流狀況攤在健康檢查上，
+    // 線上出問題時第一時間就能看出是不是配額造成的
+    tdxPacer: {
+      totalCalls: pacerStats.totalCalls,
+      totalWaitMs: pacerStats.totalWaitMs,
+      maxWaitMs: pacerStats.maxWaitMs,
     },
   });
 }
@@ -207,7 +215,13 @@ function ageRange(buses: Array<{ ageSec: number }>): {
 
 // MARK: - 啟動
 
-// 靜態資料先啟動——liveCache 的 stopToStation 對照要靠它填入
+warnIfPollTooFast();
+
+// 靜態資料先啟動——liveCache 的 stopToStation 對照要靠它填入。
+//
+// 這兩者在啟動瞬間共會送出 6 個 TDX 請求（靜態 4 + 動態 2），
+// 超過每 30 秒 5 次的配額。pacer 會自動把超出的部分排到下個窗口，
+// 因此啟動時前 30 秒可能只有部分資料就緒——這是刻意接受的取捨。
 staticStore.start();
 liveCache.start();
 
