@@ -56,6 +56,63 @@ test('有 StationUID 時直接採用，不做距離分群', () => {
   assert.equal(stations[0]!.stops.length, 2);
 });
 
+test('StationID + CityCode 是實際生效的分組依據', () => {
+  // 實測（500 筆樣本）: 臺北市 Bus/Stop 的 StationUID 出現率 0%、
+  // StationID 100%。這是實務上唯一會走到的規則 1 路徑。
+  const stations = mergeStopsIntoStations([
+    stop('S1', '臺北車站', BASE, { StationID: '9800', CityCode: 'TPE' }),
+    stop('S2', '臺北車站', offset({ north: 800 }), { StationID: '9800', CityCode: 'TPE' }),
+  ]);
+
+  assert.equal(stations.length, 1, 'StationID 相同就該合併，不受距離影響');
+  assert.equal(stations[0]!.stationUID, 'TPE9800', '應還原為慣例的 UID 格式');
+  assert.equal(stations[0]!.stops.length, 2);
+});
+
+test('不同 StationID 不合併，即使同名且緊鄰', () => {
+  const stations = mergeStopsIntoStations([
+    stop('S1', '公園路', BASE, { StationID: '1001', CityCode: 'TPE' }),
+    stop('S2', '公園路', offset({ east: 5 }), { StationID: '1002', CityCode: 'TPE' }),
+  ]);
+
+  // TDX 既然把它們分成兩個站位，就尊重官方分組，不要用距離覆寫
+  assert.equal(stations.length, 2);
+});
+
+test('CityCode 前綴避免跨城市 StationID 碰撞', () => {
+  // 為日後擴充雙北預留：兩市可能有相同的 StationID
+  const stations = mergeStopsIntoStations([
+    stop('S1', '中正路', BASE, { StationID: '500', CityCode: 'TPE' }),
+    stop('S2', '中正路', offset({ north: 900 }), { StationID: '500', CityCode: 'NWT' }),
+  ]);
+
+  assert.equal(stations.length, 2);
+  assert.deepEqual(
+    stations.map((s) => s.stationUID).sort(),
+    ['NWT500', 'TPE500'],
+  );
+});
+
+test('缺 CityCode 時仍以 StationID 分組', () => {
+  const stations = mergeStopsIntoStations([
+    stop('S1', '測試站', BASE, { StationID: '777' }),
+    stop('S2', '測試站', offset({ north: 400 }), { StationID: '777' }),
+  ]);
+
+  assert.equal(stations.length, 1);
+  assert.equal(stations[0]!.stationUID, '777');
+});
+
+test('無任何官方分組時才退回距離分群', () => {
+  const stations = mergeStopsIntoStations([
+    stop('S1', '無編號站', BASE),
+    stop('S2', '無編號站', offset({ east: 20 })),
+  ]);
+
+  assert.equal(stations.length, 1);
+  assert.equal(stations[0]!.stationUID, 'SYN-S1', '合成 ID 才會出現 SYN- 前綴');
+});
+
 test('同名且 50m 內合併為一個站位', () => {
   const stations = mergeStopsIntoStations([
     stop('S1', '公園路', BASE),

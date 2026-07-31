@@ -74,13 +74,18 @@ export type TDXEstimatedTimeOfArrival = {
 /**
  * 站牌靜態資料 —— Bus/Stop
  *
- * ✅ 已對實際回應核對（2026-07-31）。實測欄位：
+ * ✅ 已對實際回應核對（2026-07-31，500 筆樣本）。**完整**欄位清單為 13 個：
  * `StopUID, StopID, AuthorityID, StopName, StopPosition, StopAddress,
- *  Bearing, StationID, City, CityCode, LocationCityCode, UpdateTime`
+ *  Bearing, StationID, City, CityCode, LocationCityCode, UpdateTime, VersionID`
  *
- * 兩個實測結果與原假設不符：
- *   1. 方位欄位叫 `Bearing`，不是 `StopBearing`
- *   2. **沒有 `RouteUID`** —— 路線與方向只能自 StopOfRoute 取得
+ * 三項實測結果與原假設不符，每一項都會造成靜默失效（不報錯，只是資料錯）：
+ *
+ * | 原假設 | 實際 | 後果 |
+ * |---|---|---|
+ * | `StopBearing` | `Bearing` | bearing 永遠 null |
+ * | 有 `StationUID` | **0%，只有 `StationID`（100%）** | 合併規則 1 永不觸發 |
+ * | 有 `OperatorID` | **不存在** | operatorID 永遠 null |
+ * | 有 `RouteUID` | 不存在 | 路線與方向只能自 StopOfRoute 取得 |
  */
 export type TDXStop = {
   StopUID?: string;
@@ -92,15 +97,24 @@ export type TDXStop = {
     GeoHash?: string;
   };
   StopAddress?: string;
-  /** 實測欄位名為 `Bearing`（原先誤寫為 `StopBearing`） */
+  /** 實測 100%。原先誤寫為 `StopBearing`。 */
   Bearing?: string;
+  /**
+   * 實測 100%。**這是站位分組的權威來源**——
+   * TDX 用它標示同一實體站位下的多個站牌（不同業者、不同方向）。
+   */
   StationID?: string;
-  /** 未必存在。不存在時合併邏輯退回「站名 + 50m」的分群規則。 */
+  /** 實測出現率 **0%**。保留僅為向前相容，實務上不可依賴。 */
   StationUID?: string;
   AuthorityID?: string;
   City?: string;
+  /** 實測 100%。臺北市為 `TPE`，用於還原慣例上的 StationUID 格式。 */
+  CityCode?: string;
+  LocationCityCode?: string;
+  UpdateTime?: string;
+  VersionID?: number;
+  /** Bus/Stop 實測**不含**下列欄位，保留僅為容錯 */
   OperatorID?: string;
-  /** Bus/Stop 實測**不含**此欄位，保留僅為容錯 */
   RouteUID?: string;
   RouteID?: string;
 };

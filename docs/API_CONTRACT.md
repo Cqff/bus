@@ -222,9 +222,19 @@ Cache-Control: public, max-age=15, s-maxage=15, stale-while-revalidate=30
 ```
 
 **合併規則**（後端實作，記錄於此以利對照）：
-1. TDX 有 `StationUID` 者直接採用
-2. 無 `StationUID` 者，以「站名完全相同 **且** 距離 < 50m」歸為同一站位，`stationUID` 產生為 `SYN-<hash>`
+
+1. **以 `CityCode + StationID` 分組**（實測 100% 提供，如 `TPE` + `9800` → `TPE9800`）
+2. 無官方分組者，才以「站名完全相同 **且** 距離 < 50m」分群，
+   `stationUID` 為 `SYN-<群組內字典序最小的 StopUID>`
 3. 合併結果的 `lat`/`lon` 取成員站牌的重心
+
+> ⚠️ **本規則曾經寫錯，且是靜默失效的那種錯。**
+> 原設計規則 1 依賴 `StationUID`，但實測（2026-07-31，500 筆樣本）顯示
+> 臺北市 `Bus/Stop` 的 `StationUID` 出現率為 **0%**，只有 `StationID` 是 100%。
+> 照原設計執行不會拋任何錯誤，只是規則 1 永遠不觸發、全部站牌落入距離分群——
+> 等於用推測取代 TDX 的權威分組。
+>
+> 前綴 `CityCode` 是為了日後擴充雙北時 `StationID` 不會跨城市碰撞。
 
 ### 3.3 `routes.json`
 

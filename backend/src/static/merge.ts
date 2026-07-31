@@ -35,9 +35,16 @@ const MERGE_RADIUS_M = 50;
  * 出問題時只要改這裡重跑每日同步，不用改 App、不用重新送審。
  *
  * 合併規則（API_CONTRACT.md §3.2）：
- *   1. TDX 有提供 StationUID 者直接採用
- *   2. 其餘者以「站名完全相同 且 距離 < 50m」歸為同一站位
+ *   1. **以 `StationID` 分組**（實測 100% 提供）
+ *   2. 無 StationID 者才以「站名完全相同 且 距離 < 50m」分群
  *   3. 合併後座標取成員站牌的重心
+ *
+ * ⚠️ **規則 1 原本寫成依賴 `StationUID`，那是錯的。**
+ * 實測（2026-07-31，500 筆樣本）顯示 Bus/Stop **沒有 `StationUID`**（0%），
+ * 只有 `StationID`（100%）。照原設計執行，規則 1 永遠不會觸發，
+ * 全部站牌都會落到規則 2 的距離分群——等於用推測取代 TDX 的權威分組。
+ *
+ * 這類錯誤不會拋例外，只會靜默產生錯誤的合併結果，是最難察覺的一種。
  *
  * ⚠️ **stationUID 的穩定性**
  *
@@ -61,8 +68,9 @@ export function mergeStopsIntoStations(
 
   for (const stop of stops) {
     if (!isUsable(stop)) continue;
-    // 規則 1：TDX 已提供 StationUID
-    if (stop.StationUID) push(groups, stop.StationUID, stop);
+    // 規則 1：採用 TDX 的權威站位分組
+    const authoritative = authoritativeStationUID(stop);
+    if (authoritative) push(groups, authoritative, stop);
     else needsClustering.push(stop);
   }
 
@@ -180,6 +188,25 @@ function clusterByDistance(stops: TDXStop[], radiusM: number): TDXStop[][] {
   return clusters.map((cluster) => cluster.members);
 }
 
+/**
+ * 取得 TDX 提供的權威站位識別碼。
+ *
+ * 優先序：
+ *   1. `StationUID` —— 慣例格式（如 `TPE9800`），但臺北市實測不提供
+ *   2. `CityCode + StationID` —— 還原成慣例格式。加上城市前綴是為了
+ *      日後擴充雙北時 StationID 不會跨城市碰撞
+ *
+ * 回傳 null 表示此站牌沒有官方分組，需退回距離分群。
+ */
+function authoritativeStationUID(stop: TDXStop): string | null {
+  if (stop.StationUID) return stop.StationUID;
+  if (!stop.StationID) return null;
+  // CityCode 實測 100% 提供（臺北市為 TPE）；缺漏時退回不帶前綴，
+  // 單一城市下仍可正確分組
+  const prefix = stop.CityCode ?? '';
+  return `${prefix}${stop.StationID}`;
+}
+
 /** 以群組內字典序最小的 StopUID 為錨點——見本檔頂端關於穩定性的說明。 */
 function synthesizeUID(cluster: TDXStop[]): string {
   const anchor = cluster
@@ -206,6 +233,8 @@ function toStation(
           stopUID,
           routeUID: link.routeUID,
           direction: link.direction,
+          // Bus/Stop 實測不含 OperatorID —— 業者資訊只存在於 StopOfRoute
+          // 的 Operators 陣列，若日後需要顯示須自那裡取
           operatorID: stop.OperatorID ?? null,
           bearing: stop.Bearing ?? null,
         });
