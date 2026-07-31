@@ -228,6 +228,86 @@ for (const query of fullQueries) {
   }
 }
 
+// ── 6. 欄位稽核 ────────────────────────────────────────────
+
+step('6. 欄位稽核（比對 src/tdx/types.ts 的假設）');
+
+info('印出每個欄位的實際出現率。0% 代表 types.ts 的名稱寫錯，');
+info('中間值代表該欄位並非每筆都有，程式不可假設它一定存在。');
+
+type Audit = {
+  label: string;
+  path: string;
+  /** 程式碼實際依賴的欄位。缺少會造成功能失效，需特別標示。 */
+  critical: string[];
+};
+
+const audits: Audit[] = [
+  {
+    label: '站牌 Bus/Stop',
+    path: '/Bus/Stop/City/Taipei?$top=500',
+    // 合併規則 1 完全依賴 StationUID —— 若不存在，所有站牌都會走距離分群
+    critical: ['StopUID', 'StopName', 'StopPosition', 'StationUID', 'StationID', 'Bearing'],
+  },
+  {
+    label: '路線站序 Bus/StopOfRoute',
+    path: '/Bus/StopOfRoute/City/Taipei?$top=50',
+    critical: ['RouteUID', 'Direction', 'Stops'],
+  },
+  {
+    label: '線型 Bus/Shape',
+    path: '/Bus/Shape/City/Taipei?$top=10',
+    critical: ['RouteUID', 'Direction', 'Geometry'],
+  },
+];
+
+for (const audit of audits) {
+  console.log(`\n  ── ${audit.label} ──`);
+  try {
+    const response = await fetch(`${BASE_V2}${audit.path}&$format=JSON`, {
+      headers: { authorization: `Bearer ${token}`, 'accept-encoding': 'gzip' },
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok) {
+      bad(`HTTP ${response.status}`);
+      continue;
+    }
+
+    const records = (await response.json()) as Array<Record<string, unknown>>;
+    if (records.length === 0) {
+      bad('沒有資料');
+      continue;
+    }
+
+    const counts = new Map<string, number>();
+    for (const record of records) {
+      for (const [key, value] of Object.entries(record)) {
+        if (value === null || value === undefined) continue;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+
+    info(`樣本 ${records.length} 筆，共 ${counts.size} 個欄位`);
+    console.log('');
+
+    for (const field of audit.critical) {
+      const n = counts.get(field) ?? 0;
+      const pct = Math.round((n / records.length) * 100);
+      const mark = pct === 0 ? '❌' : pct === 100 ? '✅' : '⚠️ ';
+      console.log(`     ${mark} ${field.padEnd(16)} ${String(pct).padStart(3)}%  (${n}/${records.length})`);
+      if (pct === 0) failures++;
+    }
+
+    const others = [...counts.keys()].filter((k) => !audit.critical.includes(k));
+    if (others.length > 0) {
+      info('');
+      info(`其餘欄位：${others.join(', ')}`);
+    }
+  } catch (error) {
+    bad(`${audit.label} → ${(error as Error).message}`);
+  }
+}
+
 // ── 結論 ──────────────────────────────────────────────────
 
 step('結論');

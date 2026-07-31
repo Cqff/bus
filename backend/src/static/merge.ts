@@ -207,7 +207,7 @@ function toStation(
           routeUID: link.routeUID,
           direction: link.direction,
           operatorID: stop.OperatorID ?? null,
-          bearing: stop.StopBearing ?? null,
+          bearing: stop.Bearing ?? null,
         });
       }
     } else {
@@ -219,7 +219,7 @@ function toStation(
         routeUID: stop.RouteUID ?? '',
         direction: 0,
         operatorID: stop.OperatorID ?? null,
-        bearing: stop.StopBearing ?? null,
+        bearing: stop.Bearing ?? null,
       });
     }
   }

@@ -40,7 +40,18 @@ export type TDXRealTimeByFrequency = {
   UpdateTime?: string;
 };
 
-/** N1 公車預估到站資料 —— Bus/EstimatedTimeOfArrival */
+/**
+ * N1 公車預估到站資料 —— Bus/EstimatedTimeOfArrival
+ *
+ * ✅ 已對實際回應核對（2026-07-31）。實測欄位：
+ * `StopUID, StopID, StopName, RouteUID, RouteID, RouteName, Direction,
+ *  EstimateTime, StopStatus, SrcUpdateTime, UpdateTime`
+ *
+ * ⚠️ **實測樣本不含 `PlateNumb`、`IsLastBus`、`StopSequence`。**
+ * 這代表 App 的站位詳情無法顯示「哪一台車」，且末班車標示不可用。
+ * 這些欄位仍保留為 optional（部分業者或部分時段可能提供），
+ * 但 UI 不應假設它們存在。
+ */
 export type TDXEstimatedTimeOfArrival = {
   StopUID?: string;
   StopID?: string;
@@ -60,7 +71,17 @@ export type TDXEstimatedTimeOfArrival = {
   UpdateTime?: string;
 };
 
-/** 站牌靜態資料 —— Bus/Stop */
+/**
+ * 站牌靜態資料 —— Bus/Stop
+ *
+ * ✅ 已對實際回應核對（2026-07-31）。實測欄位：
+ * `StopUID, StopID, AuthorityID, StopName, StopPosition, StopAddress,
+ *  Bearing, StationID, City, CityCode, LocationCityCode, UpdateTime`
+ *
+ * 兩個實測結果與原假設不符：
+ *   1. 方位欄位叫 `Bearing`，不是 `StopBearing`
+ *   2. **沒有 `RouteUID`** —— 路線與方向只能自 StopOfRoute 取得
+ */
 export type TDXStop = {
   StopUID?: string;
   StopID?: string;
@@ -70,13 +91,18 @@ export type TDXStop = {
     PositionLat?: number;
     GeoHash?: string;
   };
-  StopBearing?: string;
+  StopAddress?: string;
+  /** 實測欄位名為 `Bearing`（原先誤寫為 `StopBearing`） */
+  Bearing?: string;
   StationID?: string;
-  /** 部分縣市未提供，轉換層會退回「站名 + 50m」的群組規則 */
+  /** 未必存在。不存在時合併邏輯退回「站名 + 50m」的分群規則。 */
   StationUID?: string;
+  AuthorityID?: string;
+  City?: string;
+  OperatorID?: string;
+  /** Bus/Stop 實測**不含**此欄位，保留僅為容錯 */
   RouteUID?: string;
   RouteID?: string;
-  OperatorID?: string;
 };
 
 /** 路線靜態資料 —— Bus/Route */
