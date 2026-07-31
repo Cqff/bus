@@ -1,0 +1,48 @@
+# XcodeGen 設定。在 Mac 上執行 `xcodegen generate` 產生 BusMap.xcodeproj。
+#
+# 用意：.xcodeproj 是二進位式的難合併檔案，用 YAML 描述可讓專案結構進版控、
+# 且能在沒有 Xcode 的機器上維護。
+#
+#   brew install xcodegen
+#   cd ios && xcodegen generate && open BusMap.xcodeproj
+
+name: BusMap
+options:
+  bundleIdPrefix: com.example.busmap
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: ""          # 填入你的 Apple Developer Team ID
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  BusMap:
+    type: application
+    platform: iOS
+    sources:
+      - path: BusMap
+    info:
+      path: BusMap/Info.plist
+      properties:
+        CFBundleDisplayName: 台北公車
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # 只申請 When In Use——MVP 無背景功能，申請 Always 會提高審核風險
+        NSLocationWhenInUseUsageDescription: >-
+          用於顯示您附近的公車站牌，以及在您回報公車狀況時確認您位於站牌附近。
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.busmap
+        TARGETED_DEVICE_FAMILY: "1"      # iPhone only
+        GENERATE_INFOPLIST_FILE: NO
