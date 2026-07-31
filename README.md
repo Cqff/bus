@@ -57,7 +57,7 @@ iOS (SwiftUI + MapKit, iOS 18+)
 - [ ] 實測 TDX A1 實際更新頻率與資料量
 - [ ] 隱私權政策
 - [ ] Firebase 專案 + Cloud Run 骨架
-- [ ] iOS 專案骨架
+- [x] iOS UI 骨架（接 mock，未經編譯——見 [ios/README.md](ios/README.md)）
 
 ## 授權
 
