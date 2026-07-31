@@ -30,11 +30,7 @@ export type TDXResult<T> = {
  * 這是 DESIGN.md §2.1 標為「取得金鑰後第一週務必實測」的項目。
  */
 async function get<T>(path: string, params?: Record<string, string>): Promise<TDXResult<T>> {
-  const url = new URL(`${config.tdx.baseUrl}${path}`);
-  url.searchParams.set('$format', 'JSON');
-  for (const [key, value] of Object.entries(params ?? {})) {
-    url.searchParams.set(key, value);
-  }
+  const url = new URL(buildUrl(path, params));
 
   const started = performance.now();
   let response = await authorizedFetch(url);
@@ -63,6 +59,23 @@ async function get<T>(path: string, params?: Record<string, string>): Promise<TD
       elapsedMs: Math.round(elapsedMs),
     },
   };
+}
+
+/**
+ * 組出查詢字串。
+ *
+ * ⚠️ **不能用 `URLSearchParams`。** 它會依 form-urlencoded 規則把 `$`
+ * 編碼成 `%24`，而 TDX 的 OData 參數（`$format`、`$top`、`$filter`…）
+ * 需要字面的 `$` —— 送出 `%24format=JSON` 會讓請求失敗。
+ *
+ * 因此參數名保持原樣，只對「值」做編碼。
+ */
+function buildUrl(path: string, params?: Record<string, string>): string {
+  const query = ['$format=JSON'];
+  for (const [key, value] of Object.entries(params ?? {})) {
+    query.push(`${key}=${encodeURIComponent(value)}`);
+  }
+  return `${config.tdx.baseUrl}${path}?${query.join('&')}`;
 }
 
 async function authorizedFetch(url: URL): Promise<Response> {

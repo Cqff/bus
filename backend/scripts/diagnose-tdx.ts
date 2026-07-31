@@ -186,6 +186,48 @@ for (const probe of probes) {
   }
 }
 
+// ── 5. 全市查詢（proxy 實際使用的請求）─────────────────────
+
+step('5. 全市查詢（不帶 $top，proxy 實際會送的請求）');
+
+info('DESIGN.md §2.1 標記為待驗證：全市單次回應是否過大而需分區拉取');
+info('');
+
+const fullQueries = [
+  { label: 'A1 公車動態', path: '/Bus/RealTimeByFrequency/City/Taipei' },
+  { label: 'N1 預估到站', path: '/Bus/EstimatedTimeOfArrival/City/Taipei' },
+  { label: '站牌', path: '/Bus/Stop/City/Taipei' },
+];
+
+for (const query of fullQueries) {
+  const started = performance.now();
+  try {
+    const response = await fetch(`${BASE_V2}${query.path}?$format=JSON`, {
+      headers: { authorization: `Bearer ${token}`, 'accept-encoding': 'gzip' },
+      signal: AbortSignal.timeout(90_000),
+    });
+    const text = await response.text();
+    const elapsed = Math.round(performance.now() - started);
+
+    if (!response.ok) {
+      bad(`${query.label} → HTTP ${response.status}（${elapsed}ms）`);
+      info(text.slice(0, 300).replace(/\s+/g, ' '));
+      continue;
+    }
+
+    const records = JSON.parse(text) as unknown[];
+    const mb = Buffer.byteLength(text, 'utf8') / 1024 / 1024;
+    ok(`${query.label} → ${records.length} 筆，${mb.toFixed(2)} MB，${elapsed}ms`);
+
+    if (mb > 5) {
+      info('⚠️ 超過 5MB，建議改用 $spatialFilter 分區拉取');
+    }
+  } catch (error) {
+    bad(`${query.label} → ${(error as Error).message}`);
+    info('若為 timeout，代表全市查詢確實過大，需改用分區拉取');
+  }
+}
+
 // ── 結論 ──────────────────────────────────────────────────
 
 step('結論');
