@@ -12,6 +12,7 @@
     "start": "node src/server.ts",
     "probe": "node --env-file=.env scripts/probe-tdx.ts",
     "diagnose": "node --env-file=.env scripts/diagnose-tdx.ts",
+    "measure-quota": "node --env-file=.env scripts/measure-quota.ts",
     "test": "node --test tests/*.test.ts",
     "typecheck": "npx --yes typescript@5.7 --noEmit -p tsconfig.json"
   },

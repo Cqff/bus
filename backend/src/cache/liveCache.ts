@@ -2,6 +2,7 @@ import { config } from '../config.ts';
 import {
   fetchRealTimeByFrequency,
   fetchEstimatedTimeOfArrival,
+  TDXError,
 } from '../tdx/client.ts';
 import { toLiveBus, toLiveETA } from '../transform.ts';
 import type { LiveBusDTO, LiveETADTO } from '../transform.ts';
@@ -37,6 +38,19 @@ class LiveCache {
   private consecutiveFailures = 0;
   private timer: NodeJS.Timeout | null = null;
 
+  /**
+   * 因 429 而暫時放大的輪詢間隔。
+   *
+   * TDX 的呼叫次數配額**未公開**（官方只公告每秒 50 次的平行請求限制），
+   * 實測會在少量請求後就回 429。撞到時繼續按原間隔猛打只會一直被擋，
+   * 因此改為指數退避，成功後再逐步收回。
+   *
+   * 用 `npm run measure-quota` 量出實際配額後，應直接把
+   * POLL_INTERVAL_MS 設到安全值，讓這個機制只當保險而非常態。
+   */
+  private throttledIntervalMs: number | null = null;
+  private rateLimitedCount = 0;
+
   /** StopUID → StationUID，由靜態資料同步作業填入 */
   private stopToStation = new Map<string, string>();
 
@@ -63,14 +77,29 @@ class LiveCache {
   start(): void {
     if (this.timer) return;
     void this.refresh();
-    this.timer = setInterval(() => void this.refresh(), config.pollIntervalMs);
-    // 不讓輪詢計時器阻止行程結束
-    this.timer.unref?.();
+    this.scheduleNext();
   }
 
   stop(): void {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+  }
+
+  /** 目前實際使用的輪詢間隔（可能因 429 而放大）。 */
+  get currentIntervalMs(): number {
+    return this.throttledIntervalMs ?? config.pollIntervalMs;
+  }
+
+  /**
+   * 改用 setTimeout 逐次排程而非 setInterval——間隔會因 429 動態改變，
+   * setInterval 無法在不重建計時器的情況下調整週期。
+   */
+  private scheduleNext(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      void this.refresh().finally(() => this.scheduleNext());
+    }, this.currentIntervalMs);
+    this.timer.unref?.();
   }
 
   private async refresh(): Promise<void> {
@@ -91,6 +120,7 @@ class LiveCache {
       this.snapshot = { buses, etas, filledAt: new Date(nowMs) };
       this.lastGoodAt = new Date(nowMs);
       this.consecutiveFailures = 0;
+      this.relaxThrottle();
 
       console.log(
         `[cache] ${buses.length} 車 / ${etas.length} 預估　` +
@@ -99,11 +129,40 @@ class LiveCache {
       );
     } catch (error) {
       this.consecutiveFailures++;
-      console.error(
-        `[cache] 更新失敗 (連續 ${this.consecutiveFailures} 次)：${(error as Error).message}`,
-      );
+
+      if (error instanceof TDXError && error.status === 429) {
+        this.applyThrottle();
+      } else {
+        console.error(
+          `[cache] 更新失敗 (連續 ${this.consecutiveFailures} 次)：${(error as Error).message}`,
+        );
+      }
       // 刻意**不清空** snapshot——寧可回舊資料也不要讓 App 顯示空地圖。
       // 見 API_CONTRACT.md §1.2 的 UPSTREAM_UNAVAILABLE 行為約定。
+    }
+  }
+
+  /** 撞到 429：間隔加倍，上限 5 分鐘。 */
+  private applyThrottle(): void {
+    this.rateLimitedCount++;
+    const base = this.throttledIntervalMs ?? config.pollIntervalMs;
+    this.throttledIntervalMs = Math.min(base * 2, 5 * 60 * 1000);
+    console.warn(
+      `[cache] TDX 配額用盡 (429，累計 ${this.rateLimitedCount} 次)，` +
+        `輪詢間隔放大為 ${this.throttledIntervalMs / 1000} 秒。` +
+        `建議執行 npm run measure-quota 量出實際配額後調整 POLL_INTERVAL_MS。`,
+    );
+  }
+
+  /** 成功後逐步收回間隔，而非一次跳回——避免立刻又撞上配額。 */
+  private relaxThrottle(): void {
+    if (this.throttledIntervalMs === null) return;
+    const relaxed = Math.round(this.throttledIntervalMs / 1.5);
+    if (relaxed <= config.pollIntervalMs) {
+      this.throttledIntervalMs = null;
+      console.log('[cache] 輪詢間隔已恢復正常');
+    } else {
+      this.throttledIntervalMs = relaxed;
     }
   }
 
