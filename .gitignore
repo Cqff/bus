@@ -1,8 +1,13 @@
 # === 機密：絕對不可進版控 ===
 # TDX OAuth2 client credentials
-.env
-.env.*
+#
+# 用萬用字元涵蓋所有變體 —— 「.env copy」「.env 備份.txt」這類檔名
+# 用 `.env` / `.env.*` 兩條規則是擋不住的，而它們同樣可能含有金鑰。
+*.env
+*.env*
+.env*
 !.env.example
+!*/.env.example
 secrets/
 *.pem
 *.p8
