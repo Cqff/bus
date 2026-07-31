@@ -50,6 +50,7 @@ async function main(): Promise<void> {
   await mkdir(OUT_DIR, { recursive: true });
 
   const samples: Sample[] = [];
+  const errors: string[] = [];
   const vehicles = new Map<string, VehicleState>();
   /** 每次 GPSTime 變動之間隔了幾秒 */
   const updateGaps: number[] = [];
@@ -111,7 +112,14 @@ async function main(): Promise<void> {
           `中位年齡 ${median(ages).toFixed(0)}s`,
       );
     } catch (error) {
-      console.error(`[${i + 1}/${totalSamples}] 失敗：${(error as Error).message}`);
+      const message = (error as Error).message;
+      errors.push(message);
+      console.error(`[${i + 1}/${totalSamples}] 失敗：${message}`);
+      // 第一次就失敗通常是設定問題，繼續取樣 40 次只是浪費時間
+      if (i === 0) {
+        console.error('\n首次取樣即失敗，中止觀測。請改跑 `npm run diagnose` 定位原因。\n');
+        break;
+      }
     }
 
     if (i < totalSamples - 1) {
@@ -119,7 +127,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const report = buildReport(samples, updateGaps, vehicles.size, fieldCheck);
+  const report = buildReport(samples, updateGaps, vehicles.size, fieldCheck, errors);
   await writeFile(new URL('report.md', OUT_DIR), report, 'utf8');
 
   console.log('\n' + '='.repeat(60));
@@ -179,9 +187,36 @@ function buildReport(
   updateGaps: number[],
   vehicleCount: number,
   fieldCheck: FieldCheck | null,
+  errors: string[],
 ): string {
   if (samples.length === 0) {
-    return '# TDX 實測報告\n\n所有取樣皆失敗，無資料可分析。';
+    // 只寫「失敗」而不寫失敗原因，等於什麼都沒說。錯誤內容必須進報告。
+    const unique = [...new Set(errors)];
+    return [
+      '# TDX 實測報告',
+      '',
+      '## ❌ 所有取樣皆失敗',
+      '',
+      unique.length > 0
+        ? `錯誤訊息（${errors.length} 次，${unique.length} 種）：\n\n` +
+          unique.map((e) => '```\n' + e + '\n```').join('\n')
+        : '沒有捕捉到錯誤訊息。',
+      '',
+      '## 下一步',
+      '',
+      '執行 `npm run diagnose`，它會把環境變數、網路可達性、OAuth2 認證、',
+      '各端點分開單獨測試，並印出完整的 HTTP 狀態碼與回應內容。',
+      '',
+      '常見原因：',
+      '',
+      '| 錯誤訊息 | 通常代表 |',
+      '|---|---|',
+      '| `TDX 認證失敗 (401)` | Client Id 或 Secret 不正確 |',
+      '| `TDX 認證失敗 (400)` | 金鑰複製時夾帶空白或換行 |',
+      '| `fetch failed` | 網路不通、防火牆、或需要設定 HTTPS_PROXY |',
+      '| `→ 404` | API 路徑已改版（例如 v2 已停用） |',
+      '| `缺少環境變數` | `.env` 不存在或該行等號後面是空的 |',
+    ].join('\n');
   }
 
   const allAges = samples.flatMap((s) => s.ages);
