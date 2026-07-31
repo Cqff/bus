@@ -54,9 +54,12 @@ iOS (SwiftUI + MapKit, iOS 18+)
 - [x] API contract
 - [ ] 申請 Apple Developer Program ← **最優先**（App Check 的 App Attest 需要它才能設定）
 - [ ] 申請 TDX API 金鑰
-- [ ] 實測 TDX A1 實際更新頻率與資料量
-- [ ] 隱私權政策
-- [ ] Firebase 專案 + Cloud Run 骨架
+- [ ] 實測 TDX A1 實際更新頻率與資料量 ← 腳本已備妥：`cd backend && npm run probe`
+- [x] 隱私權政策草稿（待需求方修正）
+- [x] Cloud Run TDX proxy（已驗證可執行）
+- [ ] Cloud Functions（submitReport / flagReport / deleteReport）
+- [ ] 靜態資料每日同步 + 站牌合併
+- [ ] Firebase 專案設定
 - [x] iOS UI 骨架（接 mock，未經編譯——見 [ios/README.md](ios/README.md)）
 
 ## 授權
