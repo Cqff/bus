@@ -49,6 +49,9 @@ dist/
 data-cache/
 *.json.gz
 
+# === TDX 實測產出（含原始回應樣本，可能量大）===
+probe-output/
+
 # === OS ===
 .DS_Store
 Thumbs.db
