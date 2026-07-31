@@ -36,6 +36,7 @@ struct ReportSheet: View {
     @State private var result: SubmitReportResult?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(MyReportsStore.self) private var myReports
 
     private let noteLimit = 100
 
@@ -196,6 +197,15 @@ struct ReportSheet: View {
 
     // MARK: - Submit
 
+    /// 給「我的回報」清單顯示用的一行摘要。
+    private var summaryText: String {
+        switch type {
+        case .delay:     "已等 \(waitMinutes) 分鐘仍未出現"
+        case .crowding:  crowdLevel.label
+        case .stopIssue: issueKind.label
+        }
+    }
+
     private var canSubmit: Bool {
         guard location.canReport(at: station) else { return false }
         switch type {
@@ -231,7 +241,19 @@ struct ReportSheet: View {
         defer { isSubmitting = false }
 
         do {
-            result = try await api.submitReport(draft, from: currentLocation)
+            let submitted = try await api.submitReport(draft, from: currentLocation)
+            result = submitted
+            // 本機記錄所有權——這是無帳號設計下唯一能讓使用者日後刪除的憑據
+            myReports.add(MyReport(
+                reportId: submitted.reportId,
+                type: type,
+                stationUID: station.stationUID,
+                stationName: station.name,
+                routeName: selectedRoute?.routeName,
+                summary: summaryText,
+                note: draft.note,
+                createdAt: Date()
+            ))
         } catch let error as BusAPIError {
             errorMessage = error.userMessage
         } catch {
@@ -311,4 +333,5 @@ private struct SubmitSuccessView: View {
         ],
         onSubmitted: {}
     )
+    .environment(MyReportsStore(filename: "preview-report-sheet.json"))
 }

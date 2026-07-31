@@ -42,6 +42,7 @@ Mock 刻意涵蓋 `API_CONTRACT.md` §6 列出的全部邊界情況：
 | `conflicting` | 台北車站的誤點回報，以及送出誤點回報後的結果頁 |
 | 距離太遠被拒 | `scenario.simulateTooFar = true` |
 | 頻率限制 | `scenario.simulateRateLimit = true` |
+| 刪除時所有權驗證失敗 | `scenario.simulateNotOwner = true` |
 
 ## 架構
 
@@ -53,13 +54,15 @@ BusMap/
 │  ├─ BusAPI.swift                protocol —— Mock 與正式實作的共同介面
 │  ├─ MockBusAPI.swift            假資料，含全部邊界情況
 │  ├─ LiveBusStore.swift          輪詢邏輯的唯一實作點（15s / 退避 / 降級）
+│  ├─ MyReportsStore.swift        本機回報索引，永不上傳（刪除權的所有權憑據）
 │  └─ LocationService.swift       定位，只申請 When In Use
 ├─ DesignSystem/Theme.swift       顏色與尺寸常數
 ├─ Features/
 │  ├─ Map/                        主畫面、公車標記、站位標記、狀態列
 │  ├─ RouteSearch/                路線搜尋
 │  ├─ StationDetail/              站位詳情（到站預估 + 回報列表）
-│  └─ Report/                     回報表單
+│  ├─ Report/                     回報表單
+│  └─ MyReports/                  我的回報（查看與刪除，履行個資法刪除權）
 └─ Utils/Polyline.swift           Google encoded polyline 解碼
 ```
 

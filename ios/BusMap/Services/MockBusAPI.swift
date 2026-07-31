@@ -12,6 +12,7 @@ final class MockBusAPI: BusAPI, @unchecked Sendable {
         var simulateUpstreamOutage = false
         var simulateTooFar         = false
         var simulateRateLimit      = false
+        var simulateNotOwner       = false
         var latency: Duration      = .milliseconds(180)
     }
 
@@ -119,6 +120,22 @@ final class MockBusAPI: BusAPI, @unchecked Sendable {
                 stopIssueCount: 0,
                 updatedAt: Date()
             )
+        )
+    }
+
+    func deleteReport(reportId: String) async throws -> DeleteReportResult {
+        try await delay()
+
+        if scenario.simulateNotOwner {
+            throw BusAPIError.notOwner(
+                message: "無法確認這筆回報屬於您。若您曾重新安裝 App，先前的回報將無法刪除。"
+            )
+        }
+
+        // 分析資料庫為每日排程批次刪除，最壞情況接近 24 小時
+        return DeleteReportResult(
+            firestoreDeleted: Bool.random(),
+            analyticsPurgeAt: Date().addingTimeInterval(60 * 60 * 24)
         )
     }
 

@@ -45,6 +45,8 @@ enum BusAPIError: Error, Equatable {
     case reportTooFar(distanceM: Int, limitM: Int, message: String)
     case locationTooInaccurate(message: String)
     case noteRejected(message: String)
+    case notOwner(message: String)
+    case alreadyRequested(message: String)
     case unauthenticated(message: String)
     case appCheckFailed(message: String)
     case network(String)
@@ -62,6 +64,8 @@ enum BusAPIError: Error, Equatable {
              .reportTooFar(_, _, let m),
              .locationTooInaccurate(let m),
              .noteRejected(let m),
+             .notOwner(let m),
+             .alreadyRequested(let m),
              .unauthenticated(let m),
              .appCheckFailed(let m):
             return m
@@ -76,6 +80,18 @@ enum BusAPIError: Error, Equatable {
     }
 }
 
+/// `deleteReport` 的結果。
+///
+/// **刪除不是同步完成的**：Firestore 熱資料可即時刪除，但長期分析資料庫
+/// （BigQuery）因 streaming buffer 限制，最長約 90 分鐘內無法執行 DELETE，
+/// 故改以佇列 + 每日排程處理。見 API_CONTRACT.md §4.3。
+struct DeleteReportResult {
+    /// 熱資料是否還在。10 分鐘前送出的回報已被 TTL 清掉，此值為 false。
+    let firestoreDeleted: Bool
+    /// 分析資料庫預計完成刪除的時間。UI 文案須據此寫「已受理」而非「已刪除」。
+    let analyticsPurgeAt: Date
+}
+
 /// 後端介面。Mock 與正式實作共用，讓 UI 能在後端完成前獨立開發。
 protocol BusAPI: Sendable {
     func liveBuses(routeUID: String, direction: Direction?) async throws -> LiveBusesResponse
@@ -85,4 +101,7 @@ protocol BusAPI: Sendable {
     func reports(stationUID: String) async throws -> [BusReport]
     func aggregates(bbox: BBox) async throws -> [StationAggregate]
     func submitReport(_ draft: ReportDraft, from location: CLLocation) async throws -> SubmitReportResult
+
+    /// 刪除自己送出的回報。伺服器比對 `report.uid` 與呼叫者的匿名 uid 驗證所有權。
+    func deleteReport(reportId: String) async throws -> DeleteReportResult
 }

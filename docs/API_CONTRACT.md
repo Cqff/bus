@@ -351,6 +351,63 @@ Cache-Control: public, max-age=15, s-maxage=15, stale-while-revalidate=30
 
 **錯誤碼**：`ALREADY_FLAGGED`、`NOT_FOUND`、`UNAUTHENTICATED`、`APP_CHECK_FAILED`
 
+### 4.3 `deleteReport`
+
+供使用者刪除**自己送出**的回報，用於履行個資法的當事人刪除權。
+
+**所有權如何驗證**：App 在本機保存自己送出的 `reportId` 清單（不上傳），
+伺服器則比對 `reports.uid`／BigQuery 的 `uid` 欄位是否等於呼叫者的 Firebase 匿名 uid。
+兩者皆符合才執行——這是在無帳號系統下唯一可靠的所有權證明。
+
+**Request**
+```ts
+{ reportId: string }
+```
+
+**Response**
+```ts
+{
+  ok: true,
+  firestoreDeleted: boolean,   // 熱資料是否還在（10 分鐘內送出的才會是 true）
+  analyticsPurgeAt: string,    // ISO8601，分析資料庫預計完成刪除的時間
+}
+```
+
+**⚠️ 這支不是同步刪除，實作必須分兩段**
+
+| 資料位置 | 刪除方式 | 時效 |
+|---|---|---|
+| Firestore `reports/` | 立即刪除 | 同步。超過 10 分鐘則已被 TTL 清除，回 `firestoreDeleted: false` |
+| **BigQuery 歷史表** | **寫入 `deletionRequests` 佇列，由每日排程批次 DELETE** | 非同步，24 小時內 |
+
+BigQuery 的 streaming buffer 在寫入後最長約 90 分鐘內**無法執行 DELETE**，
+因此不能承諾即時刪除。App 的文案必須寫「已受理，將於 24 小時內完成」，
+不可寫「已刪除」——後者是不實陳述。
+
+**`deletionRequests/{requestId}`**（Firestore，排程作業的輸入）
+```ts
+{
+  reportId: string,
+  uid: string,          // 已驗證的請求者
+  requestedAt: Timestamp,
+  status: "pending" | "completed" | "failed",
+  completedAt: Timestamp | null,
+}
+```
+
+**錯誤碼**
+
+| code | 說明 |
+|---|---|
+| `NOT_FOUND` | reportId 不存在於熱資料與歷史資料 |
+| `NOT_OWNER` | 呼叫者 uid 與該回報的 uid 不符 |
+| `ALREADY_REQUESTED` | 已有相同 reportId 的待處理刪除請求 |
+| `UNAUTHENTICATED` / `APP_CHECK_FAILED` | 同前 |
+
+> **已知限制（需寫入隱私權政策）**：Firebase 匿名 uid 存於 keychain，
+> 正常情況下跨啟動保存，但**使用者刪除 App 後重裝會取得新的 uid**，
+> 屆時將無法再刪除先前送出的回報。這是無帳號設計的必然結果。
+
 ---
 
 ## 5. Firestore 直接讀取契約

@@ -16,6 +16,7 @@ struct MapScreen: View {
 
     @State private var store: LiveBusStore
     @State private var location = LocationService()
+    @State private var myReports = MyReportsStore()
 
     @State private var bundle: StaticBundle?
     @State private var aggregates: [String: StationAggregate] = [:]
@@ -26,6 +27,7 @@ struct MapScreen: View {
     @State private var selectedDirection: Direction = .outbound
     @State private var selectedStation: Station?
     @State private var showRouteSearch = false
+    @State private var showMyReports = false
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -80,6 +82,10 @@ struct MapScreen: View {
         .sheet(item: $selectedStation) { station in
             StationDetailSheet(station: station, api: api, location: location)
         }
+        .sheet(isPresented: $showMyReports) {
+            MyReportsSheet(api: api)
+        }
+        .environment(myReports)
         .task { await bootstrap() }
         .onChange(of: scenePhase) { _, phase in
             // 進背景立即停止輪詢；回前景立即補一次
@@ -98,14 +104,36 @@ struct MapScreen: View {
                           isRefreshing: store.isRefreshing,
                           degradedMessage: store.degradedMessage)
 
-            if let route = selectedRoute {
-                selectedRouteChip(route)
-            } else {
-                searchChip
+            HStack(spacing: 8) {
+                if let route = selectedRoute {
+                    selectedRouteChip(route)
+                } else {
+                    searchChip
+                }
+
+                if myReports.hasReports {
+                    myReportsButton
+                }
             }
         }
         .padding(.top, 6)
         .padding(.horizontal, 12)
+    }
+
+    /// 只在使用者實際送出過回報後才出現——沒有紀錄時這個入口沒有意義，
+    /// 藏起來可維持預設畫面的簡潔。
+    private var myReportsButton: some View {
+        Button {
+            showMyReports = true
+        } label: {
+            FloatingCapsule {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("我的回報")
     }
 
     private var searchChip: some View {
