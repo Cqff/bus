@@ -1,0 +1,60 @@
+# === 機密：絕對不可進版控 ===
+# TDX OAuth2 client credentials
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.p8
+*.p12
+*.key
+
+# Firebase
+GoogleService-Info.plist
+.firebase/
+firebase-debug.log
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+
+# === Xcode ===
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+
+# CocoaPods / Carthage（若使用）
+Pods/
+Carthage/Build/
+
+# === Node（Cloud Functions / Cloud Run）===
+node_modules/
+npm-debug.log*
+yarn-error.log
+dist/
+*.tsbuildinfo
+
+# === 靜態資料快取產物 ===
+data-cache/
+*.json.gz
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === 編輯器 ===
+.vscode/
+.idea/
+*.swp
