@@ -3,11 +3,13 @@
 #
 # 用萬用字元涵蓋所有變體 —— 「.env copy」「.env 備份.txt」這類檔名
 # 用 `.env` / `.env.*` 兩條規則是擋不住的，而它們同樣可能含有金鑰。
-*.env
-*.env*
-.env*
+#
+# 例外規則必須放在最後：gitignore 由後往前決定勝負，
+# 負向規則寫在前面會被後面的萬用字元蓋掉。
+*env
+*env*
 !.env.example
-!*/.env.example
+!**/.env.example
 secrets/
 *.pem
 *.p8
