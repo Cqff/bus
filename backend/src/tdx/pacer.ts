@@ -1,7 +1,9 @@
-import { config } from '../config.ts';
-
 /**
  * TDX 呼叫節流器。
+ *
+ * 本模組**刻意不 import `config`**——`config` 在缺少環境變數時會拋錯，
+ * 而 `scripts/diagnose-tdx.ts` 需要在還沒驗證環境變數前就載入節流器。
+ * 需要設定值的函式改為由呼叫端傳入。
  *
  * ## 為什麼需要這個
  *
@@ -95,21 +97,20 @@ const CALLS_PER_POLL = 2;
  *
  * 在啟動時就講清楚，比等到線上一直 429 才發現好。
  */
-export function warnIfPollTooFast(): void {
-  const intervalSec = config.pollIntervalMs / 1000;
-  // 30 秒窗口內最多會出現幾輪輪詢
-  const roundsPerWindow = Math.floor(WINDOW_MS / config.pollIntervalMs) + 1;
+export function warnIfPollTooFast(pollIntervalMs: number): void {
+  // 30 秒窗口內最多會出現幾輪輪詢。取上界（+1）是刻意保守——
+  // 窗口與輪詢節奏未必對齊，寧可提早警告也不要線上才發現。
+  const roundsPerWindow = Math.floor(WINDOW_MS / pollIntervalMs) + 1;
   const callsPerWindow = roundsPerWindow * CALLS_PER_POLL;
 
   if (callsPerWindow > CAPACITY) {
-    const minIntervalSec = Math.ceil(
-      WINDOW_MS / 1000 / (CAPACITY / CALLS_PER_POLL - 1),
-    );
     console.warn(
-      `\n[pacer] ⚠️  POLL_INTERVAL_MS=${config.pollIntervalMs}（${intervalSec} 秒）` +
-        `在 30 秒窗口內會產生 ${callsPerWindow} 次呼叫，超過配額 ${CAPACITY} 次。\n` +
-        `        節流器會自動排隊，但實際輪詢間隔將被拉長且不穩定。\n` +
-        `        建議把 POLL_INTERVAL_MS 設為 30000（30 秒）。\n` +
+      `\n[pacer] ⚠️  POLL_INTERVAL_MS=${pollIntervalMs}（${pollIntervalMs / 1000} 秒）` +
+        `在 30 秒窗口內最壞情況會產生 ${callsPerWindow} 次呼叫，` +
+        `超過安全容量 ${CAPACITY} 次。\n` +
+        `        節流器會自動排隊，但實際輪詢間隔將被拉長且不穩定，\n` +
+        `        且每日靜態同步（4 次呼叫）插入時會明顯塞車。\n` +
+        `        建議把 POLL_INTERVAL_MS 設為 30000。\n` +
         `        TDX 動態資料本來就每分鐘才更新，30 秒輪詢不會損失新鮮度。\n`,
     );
   }

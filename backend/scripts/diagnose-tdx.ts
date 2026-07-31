@@ -10,12 +10,30 @@
  * 不會印出你的 Client Secret，只印遮罩後的長度資訊。
  */
 
+import { acquireSlot } from '../src/tdx/pacer.ts';
+
 const TOKEN_URL =
   'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
 const BASE_V2 = 'https://tdx.transportdata.tw/api/basic/v2';
 const BASE_V3 = 'https://tdx.transportdata.tw/api/basic/v3';
 
 let failures = 0;
+
+/**
+ * 帶節流的 fetch。
+ *
+ * TDX 配額只有每 30 秒 5 次，而本腳本會送出約 11 個資料請求 ——
+ * 不節流的話從第 6 個開始全部 429，後面兩段等於沒測。
+ *
+ * token 請求與根網域的連線測試不走這裡，它們不計入資料 API 配額。
+ */
+async function pacedFetch(url: string, token: string, timeoutMs = 30_000): Promise<Response> {
+  await acquireSlot();
+  return fetch(url, {
+    headers: { authorization: `Bearer ${token}`, 'accept-encoding': 'gzip' },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
 
 function step(name: string): void {
   console.log(`\n${'─'.repeat(58)}\n${name}\n${'─'.repeat(58)}`);
@@ -137,6 +155,10 @@ try {
 
 step('4. 端點探測');
 
+info('以下所有請求都會經過節流器排隊（TDX 配額為每 30 秒 5 次）。');
+info('本腳本約送出 11 個資料請求，因此整體需要約 90 秒，中途暫停是正常的。');
+console.log('');
+
 type Probe = { label: string; url: string };
 
 const probes: Probe[] = [
@@ -151,10 +173,7 @@ const working: string[] = [];
 
 for (const probe of probes) {
   try {
-    const response = await fetch(probe.url, {
-      headers: { authorization: `Bearer ${token}`, 'accept-encoding': 'gzip' },
-      signal: AbortSignal.timeout(30_000),
-    });
+    const response = await pacedFetch(probe.url, token);
     const text = await response.text();
 
     if (!response.ok) {
@@ -202,10 +221,7 @@ const fullQueries = [
 for (const query of fullQueries) {
   const started = performance.now();
   try {
-    const response = await fetch(`${BASE_V2}${query.path}?$format=JSON`, {
-      headers: { authorization: `Bearer ${token}`, 'accept-encoding': 'gzip' },
-      signal: AbortSignal.timeout(90_000),
-    });
+    const response = await pacedFetch(`${BASE_V2}${query.path}?$format=JSON`, token, 90_000);
     const text = await response.text();
     const elapsed = Math.round(performance.now() - started);
 
@@ -264,10 +280,7 @@ const audits: Audit[] = [
 for (const audit of audits) {
   console.log(`\n  ── ${audit.label} ──`);
   try {
-    const response = await fetch(`${BASE_V2}${audit.path}&$format=JSON`, {
-      headers: { authorization: `Bearer ${token}`, 'accept-encoding': 'gzip' },
-      signal: AbortSignal.timeout(60_000),
-    });
+    const response = await pacedFetch(`${BASE_V2}${audit.path}&$format=JSON`, token, 60_000);
     if (!response.ok) {
       bad(`HTTP ${response.status}`);
       continue;

@@ -215,7 +215,7 @@ function ageRange(buses: Array<{ ageSec: number }>): {
 
 // MARK: - 啟動
 
-warnIfPollTooFast();
+warnIfPollTooFast(config.pollIntervalMs);
 
 // 靜態資料先啟動——liveCache 的 stopToStation 對照要靠它填入。
 //
