@@ -156,7 +156,7 @@ try {
 step('4. 端點探測');
 
 info('以下所有請求都會經過節流器排隊（TDX 配額為每 30 秒 5 次）。');
-info('本腳本約送出 11 個資料請求，因此整體需要約 90 秒，中途暫停是正常的。');
+info('本腳本約送出 14 個資料請求，因此整體需要約 2 分鐘，中途暫停是正常的。');
 console.log('');
 
 type Probe = { label: string; url: string };
@@ -256,24 +256,84 @@ type Audit = {
   path: string;
   /** 程式碼實際依賴的欄位。缺少會造成功能失效，需特別標示。 */
   critical: string[];
+  /** 巢狀陣列欄位的內層稽核（例如 StopOfRoute 的 Stops[]）。 */
+  nested?: { field: string; critical: string[] };
 };
 
 const audits: Audit[] = [
   {
+    label: '動態 A1 Bus/RealTimeByFrequency',
+    path: '/Bus/RealTimeByFrequency/City/Taipei?$top=300',
+    // GPSTime 是整個 ageSec 設計的基礎；Azimuth 決定標記方向；
+    // BusStatus 決定異常標示。這三個若不存在，對應功能全部失效。
+    critical: [
+      'PlateNumb',
+      'RouteUID',
+      'RouteName',
+      'Direction',
+      'BusPosition',
+      'GPSTime',
+      'Azimuth',
+      'Speed',
+      'DutyStatus',
+      'BusStatus',
+    ],
+  },
+  {
+    label: '預估到站 N1 Bus/EstimatedTimeOfArrival',
+    path: '/Bus/EstimatedTimeOfArrival/City/Taipei?$top=300',
+    // PlateNumb / IsLastBus 若確實缺席，iOS 站位詳情的對應 UI 應移除
+    critical: [
+      'StopUID',
+      'RouteUID',
+      'RouteName',
+      'Direction',
+      'EstimateTime',
+      'StopStatus',
+      'SrcUpdateTime',
+      'PlateNumb',
+      'IsLastBus',
+      'StopSequence',
+    ],
+  },
+  {
     label: '站牌 Bus/Stop',
     path: '/Bus/Stop/City/Taipei?$top=500',
-    // 合併規則 1 完全依賴 StationUID —— 若不存在，所有站牌都會走距離分群
-    critical: ['StopUID', 'StopName', 'StopPosition', 'StationUID', 'StationID', 'Bearing'],
+    critical: [
+      'StopUID',
+      'StopName',
+      'StopPosition',
+      'StationID',
+      'StationUID',
+      'CityCode',
+      'Bearing',
+      'OperatorID',
+    ],
+  },
+  {
+    label: '路線 Bus/Route',
+    path: '/Bus/Route/City/Taipei?$top=200',
+    critical: [
+      'RouteUID',
+      'RouteName',
+      'DepartureStopNameZh',
+      'DestinationStopNameZh',
+      'Operators',
+      'BusRouteType',
+    ],
   },
   {
     label: '路線站序 Bus/StopOfRoute',
     path: '/Bus/StopOfRoute/City/Taipei?$top=50',
     critical: ['RouteUID', 'Direction', 'Stops'],
+    // Stops[] 內層欄位另外稽核 —— bundle.ts 依賴 StopSequence 與 StopPosition
+    nested: { field: 'Stops', critical: ['StopUID', 'StopName', 'StopSequence', 'StopPosition', 'StationID'] },
   },
   {
     label: '線型 Bus/Shape',
     path: '/Bus/Shape/City/Taipei?$top=10',
-    critical: ['RouteUID', 'Direction', 'Geometry'],
+    // EncodedPolyline 若存在就不必自己解析 WKT
+    critical: ['RouteUID', 'Direction', 'Geometry', 'EncodedPolyline'],
   },
 ];
 
@@ -315,6 +375,47 @@ for (const audit of audits) {
     if (others.length > 0) {
       info('');
       info(`其餘欄位：${others.join(', ')}`);
+    }
+
+    // 巢狀陣列的內層欄位（例如 StopOfRoute.Stops[]）
+    if (audit.nested) {
+      const inner: Array<Record<string, unknown>> = [];
+      for (const record of records) {
+        const value = record[audit.nested.field];
+        if (Array.isArray(value)) inner.push(...(value as Array<Record<string, unknown>>));
+      }
+
+      console.log('');
+      info(`── ${audit.nested.field}[] 內層（${inner.length} 筆）──`);
+
+      if (inner.length === 0) {
+        bad(`${audit.nested.field} 陣列是空的`);
+      } else {
+        const innerCounts = new Map<string, number>();
+        for (const item of inner) {
+          for (const [key, value] of Object.entries(item)) {
+            if (value === null || value === undefined) continue;
+            innerCounts.set(key, (innerCounts.get(key) ?? 0) + 1);
+          }
+        }
+        console.log('');
+        for (const field of audit.nested.critical) {
+          const n = innerCounts.get(field) ?? 0;
+          const pct = Math.round((n / inner.length) * 100);
+          const mark = pct === 0 ? '❌' : pct === 100 ? '✅' : '⚠️ ';
+          console.log(
+            `     ${mark} ${field.padEnd(16)} ${String(pct).padStart(3)}%  (${n}/${inner.length})`,
+          );
+          if (pct === 0) failures++;
+        }
+        const innerOthers = [...innerCounts.keys()].filter(
+          (k) => !audit.nested!.critical.includes(k),
+        );
+        if (innerOthers.length > 0) {
+          info('');
+          info(`其餘內層欄位：${innerOthers.join(', ')}`);
+        }
+      }
     }
   } catch (error) {
     bad(`${audit.label} → ${(error as Error).message}`);
