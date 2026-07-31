@@ -13,6 +13,7 @@
     "deploy": "firebase deploy --only functions,firestore:rules,firestore:indexes"
   },
   "dependencies": {
+    "@google-cloud/bigquery": "^7.9.0",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.1.0"
   },

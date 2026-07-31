@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { config } from './config.ts';
 import { liveCache } from './cache/liveCache.ts';
+import { staticStore } from './static/staticStore.ts';
 import {
   ApiError,
   parseBBox,
@@ -51,9 +52,16 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       return liveBuses(url, res);
     case '/v1/live/eta':
       return liveEta(url, res);
-    default:
-      throw new ApiError('NOT_FOUND', `未知的端點 ${url.pathname}`);
+    case '/v1/static/manifest':
+      return staticManifest(url, res);
   }
+
+  const assetMatch = /^\/v1\/static\/([a-zA-Z]+)$/.exec(url.pathname);
+  if (assetMatch?.[1]) {
+    return staticAsset(assetMatch[1], res);
+  }
+
+  throw new ApiError('NOT_FOUND', `未知的端點 ${url.pathname}`);
 }
 
 // MARK: - 端點
@@ -62,9 +70,16 @@ function health(res: ServerResponse): void {
   const ready = liveCache.isReady;
   sendJson(res, ready ? 200 : 503, {
     ok: ready,
-    filledAt: liveCache.filledAt?.toISOString() ?? null,
-    lastGoodAt: liveCache.lastGood?.toISOString() ?? null,
-    consecutiveFailures: liveCache.failures,
+    live: {
+      filledAt: liveCache.filledAt?.toISOString() ?? null,
+      lastGoodAt: liveCache.lastGood?.toISOString() ?? null,
+      consecutiveFailures: liveCache.failures,
+    },
+    static: {
+      ready: staticStore.isReady,
+      version: staticStore.version,
+      builtAt: staticStore.builtAt,
+    },
   });
 }
 
@@ -142,6 +157,42 @@ function liveEta(url: URL, res: ServerResponse): void {
   sendCacheableJson(res, { serverTime: new Date().toISOString(), etas });
 }
 
+// MARK: - 靜態資料
+
+/** 靜態資料每日才變一次，快取 1 小時。 */
+const STATIC_MAX_AGE_SEC = 3600;
+
+/** `GET /v1/static/manifest` —— API_CONTRACT.md §3.1 */
+function staticManifest(url: URL, res: ServerResponse): void {
+  const manifest = staticStore.manifest(`${url.protocol}//${url.host}`);
+  if (!manifest) {
+    throw new ApiError('UPSTREAM_UNAVAILABLE', '靜態資料尚未就緒，請稍後再試');
+  }
+  sendCacheableJson(res, manifest, STATIC_MAX_AGE_SEC);
+}
+
+/**
+ * `GET /v1/static/{stations|routes|stopOfRoute|shapes|stopIndex}`
+ *
+ * 直接供應預先壓縮好的內容。刻意不放 Cloud Storage——整包壓縮後僅 1–3MB，
+ * 由記憶體供應可省掉一個服務與一組權限設定，也避免版本不一致。
+ */
+function staticAsset(name: string, res: ServerResponse): void {
+  const asset = staticStore.asset(name);
+  if (!asset) {
+    throw new ApiError('NOT_FOUND', `未知的靜態資料 ${name}`);
+  }
+  res.writeHead(200, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-encoding': 'gzip',
+    'content-length': String(asset.bytes),
+    'cache-control': `public, max-age=${STATIC_MAX_AGE_SEC}, s-maxage=${STATIC_MAX_AGE_SEC}`,
+    etag: `"${asset.sha256.slice(0, 16)}"`,
+    'access-control-allow-origin': '*',
+  });
+  res.end(asset.gzipped);
+}
+
 function ageRange(buses: Array<{ ageSec: number }>): {
   oldestAgeSec: number | null;
   newestAgeSec: number | null;
@@ -156,6 +207,8 @@ function ageRange(buses: Array<{ ageSec: number }>): {
 
 // MARK: - 啟動
 
+// 靜態資料先啟動——liveCache 的 stopToStation 對照要靠它填入
+staticStore.start();
 liveCache.start();
 
 server.listen(config.port, () => {
@@ -167,5 +220,6 @@ server.listen(config.port, () => {
 process.on('SIGTERM', () => {
   console.log('[server] SIGTERM，關閉中');
   liveCache.stop();
+  staticStore.stop();
   server.close(() => process.exit(0));
 });

@@ -60,9 +60,10 @@ iOS (SwiftUI + MapKit, iOS 18+)
 - [x] 站牌合併邏輯（12 項測試通過）
 - [x] Cloud Functions 核心邏輯（26 項測試通過）＋ Firebase 接線（未編譯驗證）
 - [x] Firestore rules 與索引
-- [ ] 靜態資料每日同步作業（產生 `stations.json` 與 `stops/` 集合）
-- [ ] BigQuery 刪除排程
+- [x] 靜態資料每日同步 + 站牌合併（proxy 記憶體供應，不用 Cloud Storage）
+- [x] BigQuery 刪除排程
 - [ ] Firebase 專案設定
+- [ ] 首次部署與端到端串接
 - [x] iOS UI 骨架（接 mock，未經編譯——見 [ios/README.md](ios/README.md)）
 
 ## 授權

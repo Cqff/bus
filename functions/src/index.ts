@@ -24,6 +24,9 @@ import {
 } from './core/validation.ts';
 import type { ReportInput } from './core/validation.ts';
 import { crossCheckDelay, pickEstimate } from './core/crossCheck.ts';
+import { lookupStop } from './stopIndex.ts';
+
+export { purgeDeletedReports, pruneDeletionRequests } from './purge.ts';
 
 initializeApp();
 const db = getFirestore();
@@ -52,17 +55,15 @@ export const submitReport = onCall<ReportInput>(async (request) => {
   const note = validateNote(input.note);
   if (!note.ok) throw toHttpsError(note.failure);
 
-  // 站牌座標由每日同步寫入，Functions 不重複解析 TDX 靜態資料
-  const stopDoc = await db.collection('stops').doc(input.stopUID).get();
-  if (!stopDoc.exists) {
+  // 站牌座標向 proxy 取得。Functions 不重複解析 TDX 靜態資料——
+  // 站牌合併邏輯只能有一份實作，見 stopIndex.ts 開頭的說明。
+  //
+  // proxy 無法連線時**必須讓請求失敗**：沒有站牌座標就無法驗證 150 公尺規則，
+  // 略過該檢查等同開一個後門。寧可暫時無法回報。
+  const stop = await lookupStop(input.stopUID, PROXY_BASE);
+  if (!stop) {
     throw new HttpsError('not-found', '找不到這個站牌，請重新整理後再試');
   }
-  const stop = stopDoc.data() as {
-    stationUID: string;
-    lat: number;
-    lon: number;
-    name: string;
-  };
 
   const distanceM = haversineM(input.lat, input.lon, stop.lat, stop.lon);
   const proximity = validateProximity(distanceM, input.locationAccuracyM);

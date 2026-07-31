@@ -22,13 +22,30 @@ node --test tests/core.test.ts
 
 `src/index.ts` 只是 Firebase 的接線，**尚未經編譯或執行驗證**（需先安裝套件）。
 
-## 三支 callable
+## 匯出的 Functions
 
-| 名稱 | 用途 |
-|---|---|
-| `submitReport` | 送出回報。驗證 → 交叉比對 → 寫入 → 更新聚合 |
-| `flagReport` | 檢舉。達 3 次自動隱藏 |
-| `deleteReport` | 刪除自己的回報。履行個資法當事人權利 |
+| 名稱 | 類型 | 用途 |
+|---|---|---|
+| `submitReport` | callable | 送出回報。驗證 → 交叉比對 → 寫入 → 更新聚合 |
+| `flagReport` | callable | 檢舉。達 3 次自動隱藏 |
+| `deleteReport` | callable | 刪除自己的回報。履行個資法當事人權利 |
+| `purgeDeletedReports` | 每日 03:30 | 消化刪除佇列，自 BigQuery 移除 |
+| `pruneDeletionRequests` | 每週日 04:00 | 清理 30 天前已完成的刪除請求紀錄 |
+
+> ⚠️ `purgeDeletedReports` 的排程頻率與隱私權政策 §7.1 的「24 小時內完成」
+> 直接綁定。**改頻率就必須同步改政策文字**，否則是不實陳述。
+
+## 站牌座標從哪裡來
+
+`submitReport` 要驗證 150 公尺距離，需要站牌座標。**Functions 不自行解析 TDX**
+——那需要第二份金鑰，而且站牌合併邏輯會出現兩份實作終將分歧，
+屆時 App 顯示的站位與驗證用的站位會對不上，是最難查的那種 bug。
+
+改為向 proxy 取 `/v1/static/stopIndex`，冷啟動載入一次後快取 6 小時。
+合併邏輯只存在 `backend/src/static/merge.ts` 一處。
+
+**proxy 無法連線時 `submitReport` 會失敗**，這是刻意的：沒有座標就無法驗證
+距離規則，略過檢查等同開後門。寧可暫時無法回報。
 
 ## 兩個容易踩雷的設計點
 
@@ -60,6 +77,9 @@ BigQuery 的 streaming buffer 在寫入後最長約 90 分鐘內**無法執行 D
 |---|---|
 | `PROXY_BASE_URL` | TDX proxy 位址。Functions **不自行持有 TDX 金鑰** |
 | `DEVICE_HASH_SECRET` | IDFV 雜湊金鑰。存 Secret Manager，絕不進版控 |
+| `BQ_DATASET` | BigQuery dataset，預設 `busmap` |
+| `BQ_TABLE` | 表名，預設 `reports_raw_changelog`（擴充功能的預設命名）|
+| `BQ_LOCATION` | 預設 `asia-east1`，須與 dataset 實際位置一致 |
 
 ```bash
 firebase functions:secrets:set DEVICE_HASH_SECRET
@@ -83,7 +103,10 @@ firebase deploy --only functions,firestore:rules,firestore:indexes
 3. **啟用 App Check** 並註冊 App Attest（需要 Apple Developer 帳號）
 4. **安裝 Stream Firestore to BigQuery 擴充功能**，來源集合設 `reports`
 
-## 尚未實作
+## 已知的未驗證項目
 
-- BigQuery 每日刪除排程（消化 `deletionRequests` 佇列）
-- 每日靜態資料同步寫入 `stops/{stopUID}`（`submitReport` 依賴此集合取得站牌座標）
+- `src/index.ts`、`src/purge.ts`、`src/stopIndex.ts` **尚未編譯或執行過**
+  （需先 `npm install`）。純邏輯已抽到 `src/core/` 並有 26 項測試涵蓋。
+- Firestore rules 與索引尚未以 emulator 驗證。
+- `purgeDeletedReports` 依賴 Firestore→BigQuery 擴充功能的表名慣例
+  （`reports_raw_changelog`），安裝擴充功能後請確認實際表名並調整 `BQ_TABLE`。
