@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// 台北市公車即時回報地圖 —— Firestore 安全規則
+//
+// 核心原則：**client 一律不可寫入任何集合。**
+//
+// 所有寫入都必須經過 Cloud Functions callable，因為 150 公尺距離驗證、
+// 2 分鐘頻率限制、TDX 交叉比對這些檢查在客戶端執行是可以被繞過的。
+// 見 DESIGN.md §0.3。
+//
+// ⚠️ Firestore 規則是**文件層級的全有全無**，無法過濾欄位。
+// 因此隱私欄位（deviceHash / uid / reporterGeo）存在獨立的 reportSecrets
+// 集合並完全封鎖，而非依賴規則過濾 reports 的欄位。
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 預設全部封鎖，下方明確開放者才例外
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 使用者回報（公開欄位）
+    // 匿名使用者可讀，任何人不可寫——寫入僅限 Admin SDK
+    match /reports/{reportId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // 回報的隱私欄位：裝置雜湊、匿名 uid、回報座標
+    // 完全封鎖。deleteReport 由 Cloud Function 以 Admin SDK 讀取比對。
+    match /reportSecrets/{reportId} {
+      allow read, write: if false;
+    }
+
+    // 站位聚合（地圖標記用）
+    match /stopAggregates/{stationUID} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // 頻率限制紀錄。client 完全不需要看到，也絕不可寫。
+    match /rateLimits/{key} {
+      allow read, write: if false;
+    }
+
+    // 檢舉紀錄
+    match /flags/{flagId} {
+      allow read, write: if false;
+    }
+
+    // 刪除請求佇列（BigQuery 批次清除的輸入）
+    match /deletionRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    // 要求已通過 Firebase Anonymous Auth。
+    // 使用者看不到任何登入畫面——App 啟動時自動取得匿名 uid。
+    // 沒有這道檢查，任何人拿反編譯出的 Firebase config 就能直接爬資料庫。
+    function isSignedIn() {
+      return request.auth != null;
+    }
+  }
+}

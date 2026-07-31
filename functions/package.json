@@ -1,0 +1,20 @@
+{
+  "name": "busmap-functions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts",
+    "serve": "firebase emulators:start --only functions,firestore",
+    "deploy": "firebase deploy --only functions,firestore:rules,firestore:indexes"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.1.0"
+  },
+  "comment": "src/core/ 刻意不 import 任何 Firebase 套件，因此 `npm test` 不需要先 npm install。"
+}

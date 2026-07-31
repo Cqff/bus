@@ -441,10 +441,25 @@ db.collection("reports")
   .limit(to: 20)
 ```
 
-**client 可讀欄位**（Security Rules 不回傳其餘欄位）：
-`type, stopUID, stationUID, routeUID, direction, plateNumb, payload, note, createdAt, expiresAt, tdxCrossCheck.verdict, tdxCrossCheck.tdxEstimateSec, flagCount`
+**⚠️ 隱私欄位必須拆到另一個集合，不能靠 Security Rules 過濾**
 
-**client 不可讀**：`deviceHash, uid, reporterGeo, distanceToStopM`（隱私）
+Firestore 的安全規則是**文件層級的全有全無**——無法指定「這份文件只回傳某些欄位」。
+若把 `deviceHash`、`reporterGeo` 存在 `reports/{id}` 裡，任何能讀取該文件的
+client 就能讀到它們，規則擋不住。
+
+因此資料拆為兩個集合：
+
+| 集合 | 內容 | Client 權限 |
+|---|---|---|
+| `reports/{reportId}` | 公開欄位：`type, stopUID, stationUID, routeUID, routeName, direction, plateNumb, payload, note, createdAt, expiresAt, status, flagCount, verdict, tdxEstimateSec` | 可讀，**不可寫** |
+| `reportSecrets/{reportId}` | 隱私欄位：`deviceHash, uid, reporterGeo, distanceToStopM, locationAccuracyM` | **完全不可讀寫**，僅 Admin SDK |
+
+`reportSecrets` 使用與 `reports` 相同的 document ID，方便伺服器端關聯。
+BigQuery 串流只掛在 `reports` 上——歷史分析不需要原始座標與裝置雜湊，
+少存一份也減少個資風險。
+
+> `deleteReport` 驗證所有權時由 Cloud Function 以 Admin SDK 讀取
+> `reportSecrets/{reportId}.uid` 比對，client 全程接觸不到該值。
 
 ### 5.3 必要索引
 

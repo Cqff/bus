@@ -11,6 +11,7 @@
     "dev": "node --watch --env-file=.env src/server.ts",
     "start": "node src/server.ts",
     "probe": "node --env-file=.env scripts/probe-tdx.ts",
+    "test": "node --test tests/*.test.ts",
     "typecheck": "npx --yes typescript@5.7 --noEmit -p tsconfig.json"
   },
   "comment": "刻意零依賴——Node 24 原生支援 TypeScript 與 fetch，API 只有 4 個 GET 端點，引入框架只會拖慢 Cloud Run 冷啟動。"
