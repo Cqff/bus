@@ -22,6 +22,21 @@ settings:
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
+# Scheme 寫在這裡而不是靠 Xcode 自動產生——否則每次 `xcodegen generate`
+# 都會把手動設的環境變數洗掉。
+schemes:
+  BusMap:
+    build:
+      targets:
+        BusMap: all
+    run:
+      # 勾選後即接本機後端（需先跑 `cd backend && npm run dev`）。
+      # 預設不啟用，讓沒有後端的環境仍能以 MockBusAPI 開發 UI。
+      environmentVariables:
+        - variable: BUSMAP_API_BASE_URL
+          value: http://localhost:8080
+          isEnabled: false
+
 targets:
   BusMap:
     type: application

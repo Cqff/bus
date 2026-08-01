@@ -57,6 +57,13 @@ Signing & Capabilities 選一次自己的 team 即可（該設定寫在不進版
 Mock 的公車**會沿著合成線型移動**，不是寫死的座標——因此不接後端也測得到
 位置推算與動畫。
 
+> ⚠️ **Mock 的路線是合成的幾何迴圈（超橢圓），與真實道路無關**，因此公車會
+> 穿過二二八公園、臺北車站等建物。這是預期行為，不是定位錯誤——mock 的目的
+> 是驗證 UI 與推算邏輯，不是模擬真實路網。而且 mock 只有 10 台車，其中兩台
+> 刻意時速為 0（測「訊號中斷」與靜止樣式）。
+>
+> 想看跑在真實道路上的大量公車，請依〈接上真實後端〉勾選環境變數。
+
 Mock 刻意涵蓋 `API_CONTRACT.md` §6 列出的全部邊界情況：
 
 | 邊界情況 | 在哪裡看到 |
@@ -145,17 +152,24 @@ TDX 每分鐘才更新、後端每 30 秒輪詢，不推算的話車就是每 30
 
 ## 接上真實後端
 
-`Services/LiveBusAPI.swift` 已實作完成。切換方式是設環境變數
-（Xcode → Scheme → Run → Arguments → Environment Variables）：
+`Services/LiveBusAPI.swift` 已實作完成。切換只需要**勾一個核取方塊**：
 
-```
-BUSMAP_API_BASE_URL = http://localhost:8080
-```
+1. 另一個終端機跑後端：`cd backend && npm run dev`
+2. Xcode → Product → Scheme → Edit Scheme → Run → Arguments →
+   Environment Variables → 把 `BUSMAP_API_BASE_URL` 勾起來
 
-未設或設為空字串時退回 `MockBusAPI`。先在另一個終端機跑後端：
+該變數已預先寫在 `project.yml` 的 `schemes` 區段（值為 `http://localhost:8080`，
+預設未勾選），因此**不會被 `xcodegen generate` 洗掉**。未勾選或值為空字串時
+退回 `MockBusAPI`。
+
+接上後狀態列會從灰色的「連線中」變成綠色的 **● LIVE**，車次也會從 mock 的
+個位數跳到數十班（台北車站周邊視野內實測 29 班，全市 1200+ 台）。
+
+命令列直接指定（不必改 scheme）：
 
 ```bash
-cd backend && npm run dev
+SIMCTL_CHILD_BUSMAP_API_BASE_URL=http://localhost:8080 \
+  xcrun simctl launch <device-udid> com.example.busmap
 ```
 
 模擬器連 `http://localhost:8080` 需要 `NSAllowsLocalNetworking`
