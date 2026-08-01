@@ -1,0 +1,464 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0D02AF2C7B25A12FFC62D783 /* MyReportsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFCF3809CF38D9C48D5B5D0 /* MyReportsStore.swift */; };
+		0FF5EF66DFE7FFE6E87B33C1 /* BusMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 369C12BD599B7D2CD45BCBDB /* BusMarker.swift */; };
+		11392CF9F1DAE111B0A7649E /* BusMapApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6403B1F90CF0DACC103277B /* BusMapApp.swift */; };
+		1876E55EFB7B9708422ACB3D /* MockBusAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A323CFA7D37C89F9F9F4A9D7 /* MockBusAPI.swift */; };
+		1FDE7A963A3527B3E00A2E0A /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55D2152E166E4823E851D27E /* MapScreen.swift */; };
+		2A1FD6200E81EF769BBF406C /* MyReportsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22130695871527F7EBD8A237 /* MyReportsSheet.swift */; };
+		4C8C47AFB4E256153A1453B2 /* LiveModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B30E0EFDF9F7323BAF3B243 /* LiveModels.swift */; };
+		50AA43B017D02680C03BC0F0 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A882B86B4DB52A0DE8669A /* LocationService.swift */; };
+		52C55E1AF76E0374FD183F21 /* StaticModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30D5EDA6E88A19E9EFBC4C93 /* StaticModels.swift */; };
+		6C847D73F5B989DF0C10AD78 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76351D1BCACF54C94AC76C55 /* Enums.swift */; };
+		78D27F1441FB66EB66E7DAEB /* BusAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AA011D7111DFDFBBD83C27 /* BusAPI.swift */; };
+		7D42333813B50187B4F78FD3 /* ReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEC2FCECE8F9F79D69112A34 /* ReportSheet.swift */; };
+		8319C94CD7E7F4C6BCA6587D /* Polyline.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4440659AE218CBF8A51BBFC /* Polyline.swift */; };
+		8B7327136C26393547440601 /* LiveBusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 421518002C67FF1BA6E4A15B /* LiveBusStore.swift */; };
+		98760A7CFE6462A3D27290D7 /* RouteSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 815ABA81EBF40499E8D9DDBA /* RouteSearchSheet.swift */; };
+		A2C09D81B28A52C6DBC02C80 /* StationMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94D389E231039EA3D4598FC5 /* StationMarker.swift */; };
+		AD354EE6016E44C5E16C16BF /* StationDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F768F8ECA32CE120A3165303 /* StationDetailSheet.swift */; };
+		BF0FB5F4E648B54405A463BC /* ReportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1562D1FC83F31EA440C1FE5 /* ReportModels.swift */; };
+		D9E9B9860976A571FA403D17 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45FE28FE985A3F5EA10BFCC9 /* Theme.swift */; };
+		F4DCF0D48E9D0691AAECC419 /* LiveStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22689B4CD8602C7F8D24C47E /* LiveStatusBar.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0212A7241682D17D785316F9 /* BusMap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BusMap.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		20514C31BBC30F8D5DC2F14E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		22130695871527F7EBD8A237 /* MyReportsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyReportsSheet.swift; sourceTree = "<group>"; };
+		22689B4CD8602C7F8D24C47E /* LiveStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveStatusBar.swift; sourceTree = "<group>"; };
+		30D5EDA6E88A19E9EFBC4C93 /* StaticModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaticModels.swift; sourceTree = "<group>"; };
+		369C12BD599B7D2CD45BCBDB /* BusMarker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusMarker.swift; sourceTree = "<group>"; };
+		3AFCF3809CF38D9C48D5B5D0 /* MyReportsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyReportsStore.swift; sourceTree = "<group>"; };
+		421518002C67FF1BA6E4A15B /* LiveBusStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveBusStore.swift; sourceTree = "<group>"; };
+		43AA011D7111DFDFBBD83C27 /* BusAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusAPI.swift; sourceTree = "<group>"; };
+		45FE28FE985A3F5EA10BFCC9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		55D2152E166E4823E851D27E /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
+		76351D1BCACF54C94AC76C55 /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
+		815ABA81EBF40499E8D9DDBA /* RouteSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteSearchSheet.swift; sourceTree = "<group>"; };
+		8B30E0EFDF9F7323BAF3B243 /* LiveModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveModels.swift; sourceTree = "<group>"; };
+		94D389E231039EA3D4598FC5 /* StationMarker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationMarker.swift; sourceTree = "<group>"; };
+		A323CFA7D37C89F9F9F4A9D7 /* MockBusAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockBusAPI.swift; sourceTree = "<group>"; };
+		B1562D1FC83F31EA440C1FE5 /* ReportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportModels.swift; sourceTree = "<group>"; };
+		B2A882B86B4DB52A0DE8669A /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		B6403B1F90CF0DACC103277B /* BusMapApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusMapApp.swift; sourceTree = "<group>"; };
+		C4440659AE218CBF8A51BBFC /* Polyline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Polyline.swift; sourceTree = "<group>"; };
+		CEC2FCECE8F9F79D69112A34 /* ReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportSheet.swift; sourceTree = "<group>"; };
+		F768F8ECA32CE120A3165303 /* StationDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationDetailSheet.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0EBFFB1BF3D5EE9D384ED4FE /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				76351D1BCACF54C94AC76C55 /* Enums.swift */,
+				8B30E0EFDF9F7323BAF3B243 /* LiveModels.swift */,
+				B1562D1FC83F31EA440C1FE5 /* ReportModels.swift */,
+				30D5EDA6E88A19E9EFBC4C93 /* StaticModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		2C06E45457082FABC0929DF7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0212A7241682D17D785316F9 /* BusMap.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		390E7ABEF6DA44A2BC430673 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				45FE28FE985A3F5EA10BFCC9 /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		3C9FEBC67E1DBA461EFB0A1D /* RouteSearch */ = {
+			isa = PBXGroup;
+			children = (
+				815ABA81EBF40499E8D9DDBA /* RouteSearchSheet.swift */,
+			);
+			path = RouteSearch;
+			sourceTree = "<group>";
+		};
+		65ADA212F03CA53EE497FD00 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				C4440659AE218CBF8A51BBFC /* Polyline.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		79453028C0CA5189F95F29F6 /* StationDetail */ = {
+			isa = PBXGroup;
+			children = (
+				F768F8ECA32CE120A3165303 /* StationDetailSheet.swift */,
+			);
+			path = StationDetail;
+			sourceTree = "<group>";
+		};
+		9B493A50AF81B7EF1AFF0F44 /* BusMap */ = {
+			isa = PBXGroup;
+			children = (
+				DD70808357BA4733F4A21291 /* App */,
+				390E7ABEF6DA44A2BC430673 /* DesignSystem */,
+				C5566FF43E648BDE9730BF61 /* Features */,
+				0EBFFB1BF3D5EE9D384ED4FE /* Models */,
+				BC5DD4305E2CE2D611740659 /* Services */,
+				65ADA212F03CA53EE497FD00 /* Utils */,
+				20514C31BBC30F8D5DC2F14E /* Info.plist */,
+			);
+			path = BusMap;
+			sourceTree = "<group>";
+		};
+		9F06FBFDAAE1A7F6205078F3 = {
+			isa = PBXGroup;
+			children = (
+				9B493A50AF81B7EF1AFF0F44 /* BusMap */,
+				2C06E45457082FABC0929DF7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B29C9B5AA561A928438E02A9 /* MyReports */ = {
+			isa = PBXGroup;
+			children = (
+				22130695871527F7EBD8A237 /* MyReportsSheet.swift */,
+			);
+			path = MyReports;
+			sourceTree = "<group>";
+		};
+		B9E979A92E14C4C5982C9DFB /* Report */ = {
+			isa = PBXGroup;
+			children = (
+				CEC2FCECE8F9F79D69112A34 /* ReportSheet.swift */,
+			);
+			path = Report;
+			sourceTree = "<group>";
+		};
+		BC5DD4305E2CE2D611740659 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				43AA011D7111DFDFBBD83C27 /* BusAPI.swift */,
+				421518002C67FF1BA6E4A15B /* LiveBusStore.swift */,
+				B2A882B86B4DB52A0DE8669A /* LocationService.swift */,
+				A323CFA7D37C89F9F9F4A9D7 /* MockBusAPI.swift */,
+				3AFCF3809CF38D9C48D5B5D0 /* MyReportsStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		C5566FF43E648BDE9730BF61 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				FA8491FB02764BA7DB537601 /* Map */,
+				B29C9B5AA561A928438E02A9 /* MyReports */,
+				B9E979A92E14C4C5982C9DFB /* Report */,
+				3C9FEBC67E1DBA461EFB0A1D /* RouteSearch */,
+				79453028C0CA5189F95F29F6 /* StationDetail */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		DD70808357BA4733F4A21291 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B6403B1F90CF0DACC103277B /* BusMapApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		FA8491FB02764BA7DB537601 /* Map */ = {
+			isa = PBXGroup;
+			children = (
+				369C12BD599B7D2CD45BCBDB /* BusMarker.swift */,
+				22689B4CD8602C7F8D24C47E /* LiveStatusBar.swift */,
+				55D2152E166E4823E851D27E /* MapScreen.swift */,
+				94D389E231039EA3D4598FC5 /* StationMarker.swift */,
+			);
+			path = Map;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FF622703BD7C509C0FAFEB28 /* BusMap */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5924E59C25C841D5D2B1EC26 /* Build configuration list for PBXNativeTarget "BusMap" */;
+			buildPhases = (
+				34BC2309A803B0541DF27EEB /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BusMap;
+			packageProductDependencies = (
+			);
+			productName = BusMap;
+			productReference = 0212A7241682D17D785316F9 /* BusMap.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CD35A3C79B72894DF2594D1B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					FF622703BD7C509C0FAFEB28 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 97658EDDFC43B96AC2A2E976 /* Build configuration list for PBXProject "BusMap" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9F06FBFDAAE1A7F6205078F3;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2C06E45457082FABC0929DF7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FF622703BD7C509C0FAFEB28 /* BusMap */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		34BC2309A803B0541DF27EEB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				78D27F1441FB66EB66E7DAEB /* BusAPI.swift in Sources */,
+				11392CF9F1DAE111B0A7649E /* BusMapApp.swift in Sources */,
+				0FF5EF66DFE7FFE6E87B33C1 /* BusMarker.swift in Sources */,
+				6C847D73F5B989DF0C10AD78 /* Enums.swift in Sources */,
+				8B7327136C26393547440601 /* LiveBusStore.swift in Sources */,
+				4C8C47AFB4E256153A1453B2 /* LiveModels.swift in Sources */,
+				F4DCF0D48E9D0691AAECC419 /* LiveStatusBar.swift in Sources */,
+				50AA43B017D02680C03BC0F0 /* LocationService.swift in Sources */,
+				1FDE7A963A3527B3E00A2E0A /* MapScreen.swift in Sources */,
+				1876E55EFB7B9708422ACB3D /* MockBusAPI.swift in Sources */,
+				2A1FD6200E81EF769BBF406C /* MyReportsSheet.swift in Sources */,
+				0D02AF2C7B25A12FFC62D783 /* MyReportsStore.swift in Sources */,
+				8319C94CD7E7F4C6BCA6587D /* Polyline.swift in Sources */,
+				BF0FB5F4E648B54405A463BC /* ReportModels.swift in Sources */,
+				7D42333813B50187B4F78FD3 /* ReportSheet.swift in Sources */,
+				98760A7CFE6462A3D27290D7 /* RouteSearchSheet.swift in Sources */,
+				52C55E1AF76E0374FD183F21 /* StaticModels.swift in Sources */,
+				AD354EE6016E44C5E16C16BF /* StationDetailSheet.swift in Sources */,
+				A2C09D81B28A52C6DBC02C80 /* StationMarker.swift in Sources */,
+				D9E9B9860976A571FA403D17 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		018F71D2F6EF1EB137217866 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		0A20B6DF53A923663E7C4493 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		14A1D13DB76C0C56815AFBD7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BusMap/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.busmap;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		92A091DEAD5EF133A33C8882 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BusMap/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.busmap;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5924E59C25C841D5D2B1EC26 /* Build configuration list for PBXNativeTarget "BusMap" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92A091DEAD5EF133A33C8882 /* Debug */,
+				14A1D13DB76C0C56815AFBD7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		97658EDDFC43B96AC2A2E976 /* Build configuration list for PBXProject "BusMap" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A20B6DF53A923663E7C4493 /* Debug */,
+				018F71D2F6EF1EB137217866 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CD35A3C79B72894DF2594D1B /* Project object */;
+}
