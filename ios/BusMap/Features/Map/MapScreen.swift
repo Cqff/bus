@@ -12,11 +12,21 @@ struct MapScreen: View {
     /// 公車顯示的視野上限（緯度度數）。約 3 公里。
     private static let busVisibilityMaxSpan = 0.027
 
+    /// 位置推算的重算間隔。
+    ///
+    /// TDX 每分鐘才更新、後端每 30 秒輪詢一次，不推算的話車就是每 30 秒瞬移。
+    /// 0.5 秒足以看起來連續：時速 30 公里每次只移動約 4 公尺。
+    private static let estimateTick: Duration = .milliseconds(500)
+
     private let api: BusAPI
 
     @State private var store: LiveBusStore
+    @State private var estimator = BusPositionEstimator()
     @State private var location = LocationService()
     @State private var myReports = MyReportsStore()
+
+    /// 推算用的時間節拍。每次更新都會讓地圖上的公車重新算一次位置。
+    @State private var tick = Date()
 
     @State private var bundle: StaticBundle?
     @State private var aggregates: [String: StationAggregate] = [:]
@@ -57,8 +67,11 @@ struct MapScreen: View {
 
             if showsBuses {
                 ForEach(store.buses) { bus in
-                    Annotation("", coordinate: bus.coordinate, anchor: .center) {
-                        BusMarker(bus: bus)
+                    // 位置與方位角都取推算值。推算不成立時（偏離線型、靜止、
+                    // 逾時、無線型）會原樣回傳 API 座標，見 BusPositionEstimator。
+                    let position = estimator.position(of: bus, at: tick)
+                    Annotation("", coordinate: position.coordinate, anchor: .center) {
+                        BusMarker(bus: bus, azimuth: position.azimuth)
                     }
                 }
             }
@@ -87,6 +100,13 @@ struct MapScreen: View {
         }
         .environment(myReports)
         .task { await bootstrap() }
+        .task { await runEstimateTicker() }
+        .onChange(of: store.buses) { _, buses in
+            // 新一批定位進來時重新投影到線型上。投影是整套推算裡唯一昂貴的
+            // 步驟（要掃過線型的每一段），因此只在這裡做一次，之後每個節拍
+            // 只是一次純量加法加二分搜尋。
+            estimator.anchor(buses: buses)
+        }
         .onChange(of: scenePhase) { _, phase in
             // 進背景立即停止輪詢；回前景立即補一次
             phase == .active ? store.resume() : store.suspend()
@@ -259,16 +279,35 @@ struct MapScreen: View {
 
     private func bootstrap() async {
         location.requestAuthorization()
+        if bbox == nil { bbox = BBox(region: .taipeiDefault) }
+        let initialBBox = bbox ?? BBox(region: .taipeiDefault)
+
         do {
-            let loaded = try await api.staticBundle()
+            // 兩者互不相依——aggregates 只需要 bbox。序列等待會白白多一趟 RTT。
+            async let bundleTask = api.staticBundle()
+            async let aggregatesTask = api.aggregates(bbox: initialBBox)
+
+            let loaded = try await bundleTask
             bundle = loaded
-            if bbox == nil { bbox = BBox(region: .taipeiDefault) }
-            let list = try await api.aggregates(bbox: bbox ?? BBox(region: .taipeiDefault))
+            // 線型是位置推算的依據，沒有它公車只會靜止在最後一次定位處
+            await estimator.loadShapes(from: loaded)
+
+            let list = try await aggregatesTask
             aggregates = Dictionary(uniqueKeysWithValues: list.map { ($0.stationUID, $0) })
             syncStoreMode()
         } catch {
             // 靜態資料載入失敗時地圖仍可顯示底圖，避免整個畫面不可用
-            store.setMode(.viewport(bbox ?? BBox(region: .taipeiDefault)))
+            store.setMode(.viewport(initialBBox))
+        }
+    }
+
+    /// 推算節拍。只在前景跑——背景時畫面不更新，繼續算只是浪費電。
+    private func runEstimateTicker() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: Self.estimateTick)
+            guard !Task.isCancelled else { return }
+            guard scenePhase == .active, estimator.hasShapes else { continue }
+            tick = Date()
         }
     }
 
