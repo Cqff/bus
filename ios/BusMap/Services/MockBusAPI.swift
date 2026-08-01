@@ -159,30 +159,55 @@ final class MockBusAPI: BusAPI, @unchecked Sendable {
 extension MockBusAPI {
 
     static func buses(around c: CLLocationCoordinate2D, serverTime: Date) -> [LiveBus] {
-        // (路線, 車牌, 緯度偏移, 經度偏移, 方位角, 資料年齡, 勤務, 車況)
-        let rows: [(String, String, String, Double, Double, Double, Int, DutyStatus, BusStatus)] = [
-            ("TPE10132", "270", "KKA-1201",  0.0032, -0.0041,  87, 12, .normal, .normal),
-            ("TPE10132", "270", "KKA-1202", -0.0018,  0.0026, 265,  8, .normal, .normal),
-            ("TPE10132", "270", "KKA-1203",  0.0061,  0.0012, 350, 47, .normal, .normal),   // aging
-            ("TPE10132", "270", "KKA-1204", -0.0044, -0.0033, 178,132, .normal, .normal),   // stale
-            ("TPE10874", "307", "FAB-0912",  0.0009,  0.0058,  92, 15, .normal, .traffic),  // 異常車況
-            ("TPE10874", "307", "FAB-0913", -0.0071,  0.0004, 271, 22, .normal, .normal),
-            ("TPE15521", "藍7",  "EAA-3311",  0.0025,  0.0071,  45,  6, .normal, .normal),
-            ("TPE15521", "藍7",  "EAA-3312", -0.0033, -0.0068, 225, 19, .normal, .normal),
-            ("TPE10005", "12",  "KKA-7781",  0.0052, -0.0074, 310, 31, .normal, .normal),
-            ("TPE10005", "12",  "KKA-7782",  0.0011, -0.0011, 130,  4, .toOrigin, .normal),
+        // (路線 UID, 路線名, 車牌, 起始相位, 單趟秒數, 基準資料年齡, 勤務, 車況)
+        //
+        // 位置**不再是寫死的座標**——依 serverTime 沿該路線的站序前進：
+        // 相位 0–1 為去程、1–2 為回程，到底折返，週期 2。
+        // 舊版每次輪詢都回傳同一組座標，於是畫面上完全看不出輪詢到底有沒有在跑，
+        // 而「即時」正是這個 App 唯一的賣點。
+        //
+        // 同路線的車給相同單趟秒數、相位固定差 1.0，兩台便永遠一去一回，
+        // 選任一方向都不會出現「零班行駛中」。
+        let rows: [(String, String, String, Double, Double, Int, DutyStatus, BusStatus)] = [
+            ("TPE10132", "270", "KKA-1201", 0.15, 300, 12, .normal, .normal),
+            ("TPE10132", "270", "KKA-1202", 1.15, 300,  8, .normal, .normal),
+            ("TPE10132", "270", "KKA-1203", 0.62, 300, 47, .normal, .normal),   // aging：31–90 秒帶
+            ("TPE10132", "270", "KKA-1204", 1.62, 300, 132, .normal, .normal),  // stale：恆 >90 秒
+            ("TPE10874", "307", "FAB-0912", 0.30, 280, 15, .normal, .traffic),  // 異常車況
+            ("TPE10874", "307", "FAB-0913", 1.30, 280, 22, .normal, .normal),
+            ("TPE15521", "藍7",  "EAA-3311", 0.45, 200,  6, .normal, .normal),
+            ("TPE15521", "藍7",  "EAA-3312", 1.45, 200, 19, .normal, .normal),
+            ("TPE10005", "12",  "KKA-7781", 0.60, 220, 36, .normal, .normal),   // 剛過 LIVE 門檻
+            ("TPE10005", "12",  "KKA-7782", 1.60, 220,  4, .toOrigin, .normal),
         ]
 
-        return rows.map { routeUID, routeName, plate, dLat, dLon, azimuth, age, duty, status in
-            LiveBus(
+        let now = serverTime.timeIntervalSince1970
+
+        return rows.compactMap { routeUID, routeName, plate, phase, tripSeconds, baseAge, duty, status -> LiveBus? in
+            let path = routeCoordinates(routeUID, center: c)
+            guard path.count > 1 else { return nil }
+
+            let cycle = (phase + now / tripSeconds).truncatingRemainder(dividingBy: 2)
+            let outbound = cycle < 1
+            let sample = point(along: path, at: outbound ? cycle : 2 - cycle)
+            let azimuth = outbound
+                ? sample.azimuth
+                : (sample.azimuth + 180).truncatingRemainder(dividingBy: 360)
+
+            // 資料年齡在基準值上下擺動 ±3 秒，讓狀態列的數字每次輪詢都會變動——
+            // 否則畫面有沒有在更新一樣無從判斷。擺動幅度刻意小於各狀態的邊界距離，
+            // 不會把 stale／aging 這兩個 UI 測試案例晃出原本的區間。
+            let age = max(1, baseAge + Int((sin(now / 6 + phase * 7) * 3).rounded()))
+
+            return LiveBus(
                 plateNumb: plate,
                 routeUID: routeUID,
                 routeName: routeName,
-                direction: dLon >= 0 ? .outbound : .inbound,
-                lat: c.latitude + dLat,
-                lon: c.longitude + dLon,
+                direction: outbound ? .outbound : .inbound,
+                lat: sample.coordinate.latitude,
+                lon: sample.coordinate.longitude,
                 azimuth: azimuth,
-                speedKph: Double(Int.random(in: 0...42)),
+                speedKph: (lengthMeters(path) / tripSeconds) * 3.6,
                 gpsTime: serverTime.addingTimeInterval(-Double(age)),
                 ageSec: age,
                 stale: age > 90,
@@ -277,6 +302,18 @@ extension MockBusAPI {
         ]
     }
 
+    /// 站位相對於中心點的位移。位移依實際地理方位給：北門在西北、中山市場在東北、
+    /// 公園路在南、西門在西南——名稱與方位對不上的假資料在地圖上一眼就看得出來。
+    ///
+    /// `bundle()` 的站位與 `buses()` 的行駛動線共用這一份，否則車子會跑在路線之外。
+    static let stationOffsets: [(uid: String, name: String, dLat: Double, dLon: Double)] = [
+        ("TPE9800", "臺北車站",  0.0000,  0.0000),
+        ("TPE9801", "公園路",   -0.0024,  0.0008),
+        ("TPE9802", "北門",      0.0022, -0.0060),
+        ("TPE9803", "中山市場",  0.0058,  0.0032),
+        ("TPE9804", "西門",     -0.0050, -0.0082),
+    ]
+
     /// 每條路線的**去程站序**（回程直接反向）。
     ///
     /// 舊版把「全部站位、依宣告順序」當成每條路線的站序，於是每條路線都畫出同一條
@@ -305,6 +342,70 @@ extension MockBusAPI {
                   }
     }
 
+    // MARK: - 動線幾何
+    //
+    // 平面近似即可：台北市範圍內緯度變化不到 0.1 度，mock 也不需要測地線精度。
+
+    /// 路線去程的座標串。
+    static func routeCoordinates(_ routeUID: String,
+                                 center c: CLLocationCoordinate2D) -> [CLLocationCoordinate2D] {
+        (routePaths[routeUID] ?? []).compactMap { uid in
+            stationOffsets.first { $0.uid == uid }.map {
+                CLLocationCoordinate2D(latitude: c.latitude + $0.dLat,
+                                       longitude: c.longitude + $0.dLon)
+            }
+        }
+    }
+
+    /// 座標串的總長（公尺）。
+    static func lengthMeters(_ path: [CLLocationCoordinate2D]) -> Double {
+        guard let first = path.first, path.count > 1 else { return 0 }
+        let lonScale = cos(first.latitude * .pi / 180)
+        var total = 0.0
+        for i in 0..<(path.count - 1) {
+            let dx = (path[i + 1].longitude - path[i].longitude) * lonScale
+            let dy = path[i + 1].latitude - path[i].latitude
+            total += (dx * dx + dy * dy).squareRoot()
+        }
+        return total * 111_320   // 每緯度約 111.32 公里
+    }
+
+    /// 沿座標串在 0–1 比例處取點，並回傳該路段的行進方位角。
+    /// 依各段長度加權，車子才不會在短路段上暴衝。
+    static func point(along path: [CLLocationCoordinate2D],
+                      at t: Double) -> (coordinate: CLLocationCoordinate2D, azimuth: Double) {
+        guard let first = path.first else {
+            return (CLLocationCoordinate2D(latitude: 0, longitude: 0), 0)
+        }
+        guard path.count > 1 else { return (first, 0) }
+
+        let lonScale = cos(first.latitude * .pi / 180)
+        let segments: [Double] = (0..<(path.count - 1)).map { i in
+            let dx = (path[i + 1].longitude - path[i].longitude) * lonScale
+            let dy = path[i + 1].latitude - path[i].latitude
+            return (dx * dx + dy * dy).squareRoot()
+        }
+        let total = segments.reduce(0, +)
+        guard total > 0 else { return (first, 0) }
+
+        var remaining = min(max(t, 0), 1) * total
+        for (i, length) in segments.enumerated() {
+            guard remaining > length, i < segments.count - 1 else {
+                let f = length > 0 ? min(remaining / length, 1) : 0
+                let a = path[i], b = path[i + 1]
+                let coordinate = CLLocationCoordinate2D(
+                    latitude: a.latitude + (b.latitude - a.latitude) * f,
+                    longitude: a.longitude + (b.longitude - a.longitude) * f)
+                let azimuth = (atan2((b.longitude - a.longitude) * lonScale,
+                                     b.latitude - a.latitude) * 180 / .pi + 360)
+                    .truncatingRemainder(dividingBy: 360)
+                return (coordinate, azimuth)
+            }
+            remaining -= length
+        }
+        return (path[path.count - 1], 0)
+    }
+
     static func bundle(center c: CLLocationCoordinate2D) -> StaticBundle {
         // 台北車站刻意給 6 個 stops，驗證「同站 4+ 站牌」的合併 UI
         let taipeiMain = Station(
@@ -319,18 +420,12 @@ extension MockBusAPI {
                 StopRef(stopUID: "TPE50881", routeUID: "TPE10005", direction: .outbound, operatorID: "10012", bearing: "W"),
             ]
         )
-        // 位移依實際地理方位給：北門在西北、中山市場在東北、公園路在南、西門在西南。
-        // 名稱與方位對不上的假資料在地圖上一眼就看得出來。
-        let others = [
-            ("TPE9801", "公園路",  -0.0024,  0.0008),
-            ("TPE9802", "北門",     0.0022, -0.0060),
-            ("TPE9803", "中山市場",  0.0058,  0.0032),
-            ("TPE9804", "西門",    -0.0050, -0.0082),
-        ].map { uid, name, dLat, dLon in
+        // 台北車站以外的站位由 stationOffsets 推導——與車輛動線共用同一份座標
+        let others = stationOffsets.filter { $0.uid != "TPE9800" }.map { o in
             Station(
-                stationUID: uid, name: name, nameEn: nil,
-                lat: c.latitude + dLat, lon: c.longitude + dLon,
-                stops: stopRefs(at: uid)
+                stationUID: o.uid, name: o.name, nameEn: nil,
+                lat: c.latitude + o.dLat, lon: c.longitude + o.dLon,
+                stops: stopRefs(at: o.uid)
             )
         }
 
