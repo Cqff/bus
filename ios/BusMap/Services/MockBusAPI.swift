@@ -158,32 +158,52 @@ final class MockBusAPI: BusAPI, @unchecked Sendable {
 
 extension MockBusAPI {
 
+    /// 公車位置**依時間沿線型推進**，而不是回傳寫死的座標。
+    ///
+    /// 舊版本每次都回同一組經緯度，所以地圖上的車永遠不動，速度卻是
+    /// `Int.random(in: 0...42)`——時速 40 公里的車待在原地。
+    ///
+    /// 這裡的模擬對齊真實後端的行為：回傳的是 `gpsTime` **那一刻**的位置，
+    /// 而 `gpsTime` 比 `serverTime` 早 `ageSec` 秒。App 端的
+    /// `BusPositionEstimator` 才負責把這段落差補回來——這樣才測得到推算邏輯。
     static func buses(around c: CLLocationCoordinate2D, serverTime: Date) -> [LiveBus] {
-        // (路線, 車牌, 緯度偏移, 經度偏移, 方位角, 資料年齡, 勤務, 車況)
-        let rows: [(String, String, String, Double, Double, Double, Int, DutyStatus, BusStatus)] = [
-            ("TPE10132", "270", "KKA-1201",  0.0032, -0.0041,  87, 12, .normal, .normal),
-            ("TPE10132", "270", "KKA-1202", -0.0018,  0.0026, 265,  8, .normal, .normal),
-            ("TPE10132", "270", "KKA-1203",  0.0061,  0.0012, 350, 47, .normal, .normal),   // aging
-            ("TPE10132", "270", "KKA-1204", -0.0044, -0.0033, 178,132, .normal, .normal),   // stale
-            ("TPE10874", "307", "FAB-0912",  0.0009,  0.0058,  92, 15, .normal, .traffic),  // 異常車況
-            ("TPE10874", "307", "FAB-0913", -0.0071,  0.0004, 271, 22, .normal, .normal),
-            ("TPE15521", "藍7",  "EAA-3311",  0.0025,  0.0071,  45,  6, .normal, .normal),
-            ("TPE15521", "藍7",  "EAA-3312", -0.0033, -0.0068, 225, 19, .normal, .normal),
-            ("TPE10005", "12",  "KKA-7781",  0.0052, -0.0074, 310, 31, .normal, .normal),
-            ("TPE10005", "12",  "KKA-7782",  0.0011, -0.0011, 130,  4, .toOrigin, .normal),
+        // (路線, 路線名, 車牌, 方向, 起始沿線比例, 時速, 資料年齡, 勤務, 車況)
+        let rows: [(String, String, String, Direction, Double, Double, Int, DutyStatus, BusStatus)] = [
+            ("TPE10132", "270", "KKA-1201", .outbound, 0.05, 32,  12, .normal, .normal),
+            ("TPE10132", "270", "KKA-1202", .inbound,  0.38, 27,   8, .normal, .normal),
+            ("TPE10132", "270", "KKA-1203", .outbound, 0.62, 18,  47, .normal, .normal),   // aging
+            ("TPE10132", "270", "KKA-1204", .inbound,  0.81,  0, 132, .normal, .normal),   // stale + 靜止
+            ("TPE10874", "307", "FAB-0912", .outbound, 0.15, 24,  15, .normal, .traffic),  // 異常車況
+            ("TPE10874", "307", "FAB-0913", .inbound,  0.55,  0,  22, .normal, .normal),   // 停等紅燈
+            ("TPE15521", "藍7",  "EAA-3311", .outbound, 0.28, 35,   6, .normal, .normal),
+            ("TPE15521", "藍7",  "EAA-3312", .inbound,  0.72, 21,  19, .normal, .normal),
+            ("TPE10005", "12",  "KKA-7781", .outbound, 0.44, 29,  31, .normal, .normal),
+            ("TPE10005", "12",  "KKA-7782", .inbound,  0.90, 16,   4, .toOrigin, .normal),
         ]
 
-        return rows.map { routeUID, routeName, plate, dLat, dLon, azimuth, age, duty, status in
-            LiveBus(
+        return rows.compactMap { routeUID, routeName, plate, direction, startFraction, speedKph, age, duty, status in
+            let gpsTime = serverTime.addingTimeInterval(-Double(age))
+
+            guard let path = shapePaths["\(routeUID)-\(direction.rawValue)"] else { return nil }
+
+            // 以固定基準時刻起算，讓位置成為時間的確定性函數——重開 App
+            // 不會讓車瞬移，跨次呼叫的位移也才符合它宣稱的速度。
+            let elapsed = gpsTime.timeIntervalSinceReferenceDate
+            let travelled = startFraction * path.totalLength + (speedKph / 3.6) * elapsed
+            let distance = travelled.truncatingRemainder(dividingBy: path.totalLength)
+
+            let position = path.coordinate(atDistance: distance)
+
+            return LiveBus(
                 plateNumb: plate,
                 routeUID: routeUID,
                 routeName: routeName,
-                direction: dLon >= 0 ? .outbound : .inbound,
-                lat: c.latitude + dLat,
-                lon: c.longitude + dLon,
-                azimuth: azimuth,
-                speedKph: Double(Int.random(in: 0...42)),
-                gpsTime: serverTime.addingTimeInterval(-Double(age)),
+                direction: direction,
+                lat: position.latitude,
+                lon: position.longitude,
+                azimuth: path.bearing(atDistance: distance),
+                speedKph: speedKph,
+                gpsTime: gpsTime,
                 ageSec: age,
                 stale: age > 90,
                 dutyStatus: duty,
@@ -191,6 +211,35 @@ extension MockBusAPI {
             )
         }
     }
+
+    /// 合成線型解碼後的快取。解碼一次就好。
+    private static let shapePaths: [String: RoutePath] = {
+        var paths: [String: RoutePath] = [:]
+        for (routeUID, direction, encoded) in mockShapes {
+            guard let path = RoutePath(encodedPolyline: encoded) else { continue }
+            paths["\(routeUID)-\(direction.rawValue)"] = path
+        }
+        return paths
+    }()
+
+    /// 台北車站周邊的合成迴圈路線（超橢圓，2.5–5.9 公里）。
+    ///
+    /// 真實線型有數百到數千個點，塞進 mock 會讓檔案無法閱讀。這些是離線以
+    /// Google Encoded Polyline（precision 5）演算法產生並驗證過往返一致的
+    /// 短字串，每條 29 點、約 110 字元。返程為去程的反序，因此兩個方向的
+    /// 推進方向相反。
+    private static let mockShapes: [(String, Direction, String)] = [
+        ("TPE10132", .outbound, "s{zwCssvdVsSTeGdAwDrBcChDyAjFu@nIQpYPpYt@nIxAjFbChDvDrBdGdArSTrSUdGeAvDsBbCiDxAkFt@oIPqYQqYu@oIyAkFcCiDwDsBeGeAsSU"),
+        ("TPE10132", .inbound,  "s{zwCssvdVrSTdGdAvDrBbChDxAjFt@nIPpYQpYu@nIyAjFcChDwDrBeGdAsSTsSUeGeAwDsBcCiDyAkFu@oIQqYPqYt@oIxAkFbCiDvDsBdGeArSU"),
+        ("TPE10874", .outbound, "a}{wCizudVwAdCy@xDa@jGIvXNfMd@pF`AjD|AzBbCpAzDn@fQL~HUjDw@vB{AvAeCx@yD`@kGHwXOgMe@qFaAkD}A{BcCqA{Do@gQM_ITkDv@wBzA"),
+        ("TPE10874", .inbound,  "a}{wCizudVvB{AjDw@~HUfQLzDn@bCpA|AzB`AjDd@pFNfMIvXa@jGy@xDwAdCwBzAkDv@_ITgQM{Do@cCqA}A{BaAkDe@qFOgMHwX`@kGx@yDvAeC"),
+        ("TPE15521", .outbound, "yi{wC_tudVEzSLnH\\pDp@|BfAxAbB|@pC^`MFjESvBm@rAiA|@kBf@qCTyED{SMoH]qDq@}BgAyAcB}@qC_@aMGkERwBl@sAhA}@jBg@pCUxE"),
+        ("TPE15521", .inbound,  "yi{wC_tudVTyEf@qC|@kBrAiAvBm@jES`MFpC^bB|@fAxAp@|B\\pDLnHEzSUxEg@pC}@jBsAhAwBl@kERaMGqC_@cB}@gAyAq@}B]qDMoHD{S"),
+        ("TPE10005", .outbound, "mc|wCgntdVxAvA~B~@nDh@hGTxW@|HO`Ec@jCw@bBqAbAoB`@gDBwNYgEy@{ByAwA_C_AoDi@iGUyWA}HNaEb@kCv@cBpAcAnBa@fDCvNXfEx@zB"),
+        ("TPE10005", .inbound,  "mc|wCgntdVy@{BYgEBwN`@gDbAoBbBqAjCw@`Ec@|HOxW@hGTnDh@~B~@xAvAx@zBXfECvNa@fDcAnBcBpAkCv@aEb@}HNyWAiGUoDi@_C_AyAwA"),
+        ("TPE19001", .outbound, "cvzwCkusdVbCTvJ?fCStAg@~@_Aj@wA\\yBL}D?wOMaE[}Bk@yA}@}@uAi@cCUwJ?gCRuAf@_A~@k@vA]xBM|D?vOL`EZ|Bj@xA|@|@tAh@"),
+        ("TPE19001", .inbound,  "cvzwCkusdVuAi@}@}@k@yA[}BMaE?wOL}D\\yBj@wA~@_AtAg@fCSvJ?bCTtAh@|@|@j@xAZ|BL`E?vOM|D]xBk@vA_A~@uAf@gCRwJ?cCU"),
+    ]
 
     static func etas(stationUID: String) -> [BusETA] {
         // 涵蓋 stopStatus 0–4 全部狀態
@@ -342,7 +391,11 @@ extension MockBusAPI {
             stations: stations,
             routes: routes,
             routeStops: routeStops,
-            shapes: []   // Mock 不提供線型，地圖改以站點連線示意
+            // 線型同時供三處使用：地圖上的路線疊圖、mock 公車的行進軌跡、
+            // 以及 BusPositionEstimator 的推算依據。
+            shapes: mockShapes.map { routeUID, direction, encoded in
+                RouteShape(routeUID: routeUID, direction: direction, encodedPolyline: encoded)
+            }
         )
     }
 }

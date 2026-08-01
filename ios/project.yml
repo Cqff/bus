@@ -22,6 +22,21 @@ settings:
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
+# Scheme 寫在這裡而不是靠 Xcode 自動產生——否則每次 `xcodegen generate`
+# 都會把手動設的環境變數洗掉。
+schemes:
+  BusMap:
+    build:
+      targets:
+        BusMap: all
+    run:
+      # 勾選後即接本機後端（需先跑 `cd backend && npm run dev`）。
+      # 預設不啟用，讓沒有後端的環境仍能以 MockBusAPI 開發 UI。
+      environmentVariables:
+        - variable: BUSMAP_API_BASE_URL
+          value: http://localhost:8080
+          isEnabled: false
+
 targets:
   BusMap:
     type: application
@@ -41,6 +56,11 @@ targets:
         NSLocationWhenInUseUsageDescription: >-
           用於顯示您附近的公車站牌，以及在您回報公車狀況時確認您位於站牌附近。
         ITSAppUsesNonExemptEncryption: false
+        # 讓模擬器能連 http://localhost:8080 的本機後端。
+        # 只開放本機網路，不是 NSAllowsArbitraryLoads——後者會放行任意明文
+        # 連線，且送審時需要書面說明。正式環境走 HTTPS，不受此設定影響。
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.busmap

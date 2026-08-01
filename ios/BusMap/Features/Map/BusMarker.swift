@@ -7,6 +7,15 @@ import SwiftUI
 struct BusMarker: View {
     let bus: LiveBus
 
+    /// 箭頭方向。有推算時是沿線型的當下方位角（會跟著轉彎），
+    /// 沒有推算時就是 API 給的 `bus.azimuth`。
+    let azimuth: Double
+
+    init(bus: LiveBus, azimuth: Double? = nil) {
+        self.bus = bus
+        self.azimuth = azimuth ?? bus.azimuth
+    }
+
     var body: some View {
         ZStack {
             // 方向箭頭繞著膠囊中心公轉，角度即 TDX 方位角（正北為 0）
@@ -14,7 +23,7 @@ struct BusMarker: View {
                 .font(.system(size: 8))
                 .foregroundStyle(tint)
                 .offset(y: -19)
-                .rotationEffect(.degrees(bus.azimuth))
+                .rotationEffect(.degrees(azimuth))
 
             VStack(spacing: 1) {
                 Text(bus.routeName)
