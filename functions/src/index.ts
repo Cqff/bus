@@ -1,7 +1,7 @@
 /**
  * Cloud Functions —— 回報的寫入端。
  *
- * ⚠️ **此檔尚未經編譯或執行驗證**（需先 `npm install` 取得 Firebase 套件）。
+ * ⚠️ 此檔已通過型別檢查（`npm run typecheck`），但**尚未執行或部署驗證**。
  * 純邏輯已抽到 `src/core/` 並有測試涵蓋；此處只是 Firebase 的接線。
  *
  * 為什麼寫入不走 Firestore 直寫：150 公尺距離驗證、2 分鐘頻率限制、

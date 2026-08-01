@@ -184,20 +184,38 @@ Cache-Control: public, max-age=15, s-maxage=15, stale-while-revalidate=30
 
 ```json
 {
-  "version": "2026-07-31T04:00:00Z",
+  "version": "318d67e12c709b0b",
+  "builtAt": "2026-08-01T04:15:36.013Z",
   "minAppBuild": 1,
   "files": {
-    "stations":    { "url": "https://.../stations.v20260731.json.gz",    "sha256": "ab3f…", "bytes": 486211 },
-    "routes":      { "url": "https://.../routes.v20260731.json.gz",      "sha256": "7c19…", "bytes": 91234 },
-    "stopOfRoute": { "url": "https://.../stopOfRoute.v20260731.json.gz", "sha256": "d4e0…", "bytes": 1512345 },
-    "shapes":      { "url": "https://.../shapes.v20260731.json.gz",      "sha256": "91aa…", "bytes": 2412345 }
+    "stations":    { "url": "https://.../v1/static/stations",    "sha256": "218ab4…", "bytes": 3311262, "gzipBytes": 376667 },
+    "routes":      { "url": "https://.../v1/static/routes",      "sha256": "272deb…", "bytes": 69376,   "gzipBytes": 9104 },
+    "stopOfRoute": { "url": "https://.../v1/static/stopOfRoute", "sha256": "e6cec8…", "bytes": 3602649, "gzipBytes": 614682 },
+    "shapes":      { "url": "https://.../v1/static/shapes",      "sha256": "0926c7…", "bytes": 836506,  "gzipBytes": 378739 },
+    "stopIndex":   { "url": "https://.../v1/static/stopIndex",   "sha256": "3af8e6…", "bytes": 3177677, "gzipBytes": 567443 }
   }
 }
 ```
 
+`version` 是**內容雜湊**而非時間戳——資料沒變時 App 就不必重新下載。用時間戳會讓使用者
+每天無謂地重抓同一份數 MB 資料。
+
+**⚠️ 三個大小／雜湊欄位描述的不是同一份位元組**：
+
+| 欄位 | 描述的內容 |
+|---|---|
+| `sha256` | **解壓後**的 JSON。App 必須先解壓再驗，拿傳輸到的位元組去算一定對不上 |
+| `bytes` | **解壓後**的位元組數。用於預估解壓後的儲存空間 |
+| `gzipBytes` | **壓縮後**的位元組數，即實際傳輸量與回應的 `content-length` |
+
+**傳輸編碼**：檔案端點依請求的 `Accept-Encoding` 決定回 gzip 或 identity，並回
+`Vary: Accept-Encoding`。iOS `URLSession` 預設送 `gzip, deflate, br` 且會自動解壓，
+因此 App 端拿到的已是解壓後內容，可直接對它算 `sha256`。
+
 **Cache-Control**: `public, max-age=3600`
 
-**App 流程**：啟動時取 manifest → `version` 與本機不同才下載 → 驗 `sha256` → 原子性替換本機快取。
+**App 流程**：啟動時取 manifest → `version` 與本機不同才下載 → **解壓後**驗 `sha256` →
+原子性替換本機快取。
 `minAppBuild` 高於當前 build 時提示使用者更新 App（保留給未來破壞性資料格式變更）。
 
 ### 3.2 `stations.json` — **站位（已合併同站不同業者的站牌）**

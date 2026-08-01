@@ -20,7 +20,8 @@ node --test tests/core.test.ts
 
 26 項測試涵蓋欄位驗證、距離與精度、文字過濾、頻率限制、以及交叉比對判定。
 
-`src/index.ts` 只是 Firebase 的接線，**尚未經編譯或執行驗證**（需先安裝套件）。
+`src/index.ts` 只是 Firebase 的接線。已通過型別檢查（`npm install && npm run typecheck`），
+但**尚未執行或部署驗證**。
 
 ## 匯出的 Functions
 
@@ -105,8 +106,8 @@ firebase deploy --only functions,firestore:rules,firestore:indexes
 
 ## 已知的未驗證項目
 
-- `src/index.ts`、`src/purge.ts`、`src/stopIndex.ts` **尚未編譯或執行過**
-  （需先 `npm install`）。純邏輯已抽到 `src/core/` 並有 26 項測試涵蓋。
+- `src/index.ts`、`src/purge.ts`、`src/stopIndex.ts` 已通過型別檢查，但**從未實際執行過**。
+  純邏輯已抽到 `src/core/` 並有 26 項測試涵蓋；Firebase 接線的部分只有型別保證。
 - Firestore rules 與索引尚未以 emulator 驗證。
 - `purgeDeletedReports` 依賴 Firestore→BigQuery 擴充功能的表名慣例
   （`reports_raw_changelog`），安裝擴充功能後請確認實際表名並調整 `BQ_TABLE`。

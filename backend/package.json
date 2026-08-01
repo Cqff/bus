@@ -14,7 +14,11 @@
     "diagnose": "node --env-file=.env scripts/diagnose-tdx.ts",
     "measure-quota": "node --env-file=.env scripts/measure-quota.ts",
     "test": "node --test tests/*.test.ts",
-    "typecheck": "npx --yes typescript@5.7 --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
-  "comment": "刻意零依賴——Node 24 原生支援 TypeScript 與 fetch，API 只有 4 個 GET 端點，引入框架只會拖慢 Cloud Run 冷啟動。"
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  },
+  "comment": "刻意零**執行期**依賴——Node 24 原生支援 TypeScript 與 fetch，API 只有 4 個 GET 端點，引入框架只會拖慢 Cloud Run 冷啟動。devDependencies 僅供 `npm run typecheck`，Dockerfile 不執行 npm install，不會進到映像檔。"
 }

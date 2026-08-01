@@ -1,10 +1,12 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { gunzipSync } from 'node:zlib';
 import { config } from './config.ts';
 import { liveCache } from './cache/liveCache.ts';
 import { staticStore } from './static/staticStore.ts';
 import { pacerStats, warnIfPollTooFast } from './tdx/pacer.ts';
 import {
+  acceptsGzip,
   ApiError,
   parseBBox,
   parseDirection,
@@ -59,7 +61,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
   const assetMatch = /^\/v1\/static\/([a-zA-Z]+)$/.exec(url.pathname);
   if (assetMatch?.[1]) {
-    return staticAsset(assetMatch[1], res);
+    return staticAsset(assetMatch[1], req, res);
   }
 
   throw new ApiError('NOT_FOUND', `未知的端點 ${url.pathname}`);
@@ -184,21 +186,35 @@ function staticManifest(url: URL, res: ServerResponse): void {
  *
  * 直接供應預先壓縮好的內容。刻意不放 Cloud Storage——整包壓縮後僅 1–3MB，
  * 由記憶體供應可省掉一個服務與一組權限設定，也避免版本不一致。
+ *
+ * **必須看 Accept-Encoding**：無條件回 gzip 會讓不宣告接受壓縮的 client 收到亂碼。
+ * 未壓縮版本即時解壓而不常駐——未壓縮總量約 11MB（壓縮後僅 1.9MB），而這條路徑
+ * 實務上幾乎不會被走到（iOS URLSession 一律送 gzip），為罕見路徑常駐 11MB 不划算。
+ *
+ * `Vary: Accept-Encoding` 不可省略：少了它，CDN 會把 gzip 版本餵給要求 identity
+ * 的下一位使用者（反之亦然）。
  */
-function staticAsset(name: string, res: ServerResponse): void {
+function staticAsset(name: string, req: IncomingMessage, res: ServerResponse): void {
   const asset = staticStore.asset(name);
   if (!asset) {
     throw new ApiError('NOT_FOUND', `未知的靜態資料 ${name}`);
   }
+
+  const gzip = acceptsGzip(req.headers['accept-encoding']);
+  const body = gzip ? asset.gzipped : gunzipSync(asset.gzipped);
+  const etag = `"${asset.sha256.slice(0, 16)}${gzip ? '' : '-identity'}"`;
+
   res.writeHead(200, {
     'content-type': 'application/json; charset=utf-8',
-    'content-encoding': 'gzip',
-    'content-length': String(asset.bytes),
+    ...(gzip ? { 'content-encoding': 'gzip' } : {}),
+    'content-length': String(body.byteLength),
     'cache-control': `public, max-age=${STATIC_MAX_AGE_SEC}, s-maxage=${STATIC_MAX_AGE_SEC}`,
-    etag: `"${asset.sha256.slice(0, 16)}"`,
+    vary: 'Accept-Encoding',
+    // ETag 須逐表示法唯一，否則 gzip 與 identity 兩版會互相污染快取
+    etag,
     'access-control-allow-origin': '*',
   });
-  res.end(asset.gzipped);
+  res.end(body);
 }
 
 function ageRange(buses: Array<{ ageSec: number }>): {
