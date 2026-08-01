@@ -8,7 +8,7 @@ SwiftUI + MapKit，最低支援 iOS 18。
 
 ## 開啟專案
 
-### 方式 A：XcodeGen（建議，專案結構可進版控）
+**`.xcodeproj` 不進版控**，由 `project.yml` 產生。clone 後第一件事：
 
 ```bash
 brew install xcodegen
@@ -17,13 +17,28 @@ xcodegen generate
 open BusMap.xcodeproj
 ```
 
-### 方式 B：手動建立
+`project.yml` 是專案結構的唯一真實來源。新增檔案不需要改它——`sources`
+指的是整個 `BusMap/` 目錄，遞迴納入。
+
+### 為什麼不把 .xcodeproj 進版控
+
+`project.pbxproj` 是難以合併的機器產生檔，而且 Xcode 會把開發者個人的
+`DEVELOPMENT_TEAM` 寫進去，下次 `xcodegen generate` 又洗掉，來回衝突。
+
+### 設定簽章
+
+`project.yml` 的 `DEVELOPMENT_TEAM` 留空。產生專案後在 Xcode 的
+Signing & Capabilities 選一次自己的 team 即可（該設定寫在不進版控的
+`.xcodeproj` 裡，所以不會影響其他人）。
+
+### 不想用 XcodeGen 的話
 
 1. Xcode → New Project → iOS App → SwiftUI，最低版本設 iOS 18
 2. 刪掉範本產生的 `ContentView.swift` 與 `*App.swift`
 3. 把 `ios/BusMap/` 整個資料夾拖進專案（勾 Create groups）
-4. Info.plist 加入 `NSLocationWhenInUseUsageDescription`：
-   `用於顯示您附近的公車站牌，以及在您回報公車狀況時確認您位於站牌附近。`
+4. Info.plist 依 `project.yml` 的 `info.properties` 補齊，其中
+   `NSLocationWhenInUseUsageDescription` 與 `NSAppTransportSecurity`
+   （本機後端需要）不可漏
 
 ## 目前狀態
 

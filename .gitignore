@@ -24,6 +24,13 @@ serviceAccountKey.json
 *-firebase-adminsdk-*.json
 
 # === Xcode ===
+#
+# .xcodeproj 完全由 `cd ios && xcodegen generate` 從 project.yml 產生，
+# 因此不進版控——project.yml 才是唯一真實來源。
+#
+# 這也解決了 Xcode 會把開發者的 DEVELOPMENT_TEAM 寫進 project.pbxproj、
+# 而下次重新產生又被洗掉的來回衝突。
+*.xcodeproj/
 build/
 DerivedData/
 *.xcuserstate
