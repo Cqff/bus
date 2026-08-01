@@ -10,7 +10,7 @@
  * 隱私權政策 §7.1 承諾「24 小時內完成」——**若改變此排程頻率，
  * 必須同步修改政策文字**，否則就是不實陳述。
  *
- * ⚠️ 此檔尚未經編譯或執行驗證（需先 npm install 取得 Firebase 與 BigQuery 套件）。
+ * ⚠️ 此檔已通過型別檢查（`npm run typecheck`），但**尚未執行或部署驗證**。
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';

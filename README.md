@@ -7,7 +7,8 @@ iOS App，在地圖上呈現台北市公車即時動態，並讓使用者匿名�
 
 ## 現況
 
-📐 **設計階段**，尚未開始實作。
+🛠 **實作中**。後端 proxy 已接真實 TDX 實機驗證通過；Cloud Functions 已通過型別檢查但未執行過；
+iOS 從未編譯。詳見下方「進度」。
 
 ## 文件
 
@@ -53,12 +54,12 @@ iOS (SwiftUI + MapKit, iOS 18+)
 - [x] 系統設計
 - [x] API contract
 - [ ] 申請 Apple Developer Program ← **最優先**（App Check 的 App Attest 需要它才能設定）
-- [ ] 申請 TDX API 金鑰
-- [ ] 實測 TDX A1 實際更新頻率與資料量 ← 腳本已備妥：`cd backend && npm run probe`
+- [x] 申請 TDX API 金鑰（已實測可認證取資料）
+- [ ] 實測 TDX A1 實際更新頻率與資料量 ← 配額已實測（DESIGN §0.2），更新頻率尚未：`cd backend && npm run probe`
 - [x] 隱私權政策草稿（待需求方修正）
 - [x] Cloud Run TDX proxy（已驗證可執行）
 - [x] 站牌合併邏輯（12 項測試通過）
-- [x] Cloud Functions 核心邏輯（26 項測試通過）＋ Firebase 接線（未編譯驗證）
+- [x] Cloud Functions 核心邏輯（26 項測試通過）＋ Firebase 接線（型別檢查通過，未執行驗證）
 - [x] Firestore rules 與索引
 - [x] 靜態資料每日同步 + 站牌合併（proxy 記憶體供應，不用 Cloud Storage）
 - [x] BigQuery 刪除排程

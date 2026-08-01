@@ -73,9 +73,13 @@ curl "http://localhost:8080/v1/live/buses?bbox=121.50,25.03,121.54,25.06" | head
 
 ## 尚未實作
 
-- `GET /v1/static/manifest` 與每日靜態資料同步（站牌合併邏輯）
 - Cloud Functions：`submitReport` / `flagReport` / `deleteReport`
 - BigQuery 刪除排程
+
+兩者程式碼皆已寫好（`functions/src/`），純邏輯部分有 26 項單元測試涵蓋，
+但**尚未編譯或部署驗證**——需先 `cd functions && npm install` 取得 Firebase 與 BigQuery 套件。
+
+上表端點、每日靜態同步與站牌合併已於 2026-08-01 接真實 TDX 實機驗證通過。
 
 ## 架構筆記
 

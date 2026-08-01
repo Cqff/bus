@@ -11,11 +11,20 @@ import type { StaticBundle } from './bundle.ts';
 import { buildStopToStationMap } from './merge.ts';
 import { liveCache } from '../cache/liveCache.ts';
 
-/** 預先壓縮好的檔案，直接由記憶體供應。 */
+/**
+ * 預先壓縮好的檔案，直接由記憶體供應。
+ *
+ * ⚠️ `sha256` 與 `bytes` 描述的都是**解壓後**的內容，`gzipBytes` 才是傳輸長度。
+ * 三者混淆會讓 App 的完整性驗證全數失敗，因此欄位名稱刻意寫死語意。
+ */
 type Asset = {
   gzipped: Buffer;
+  /** 解壓後 JSON 的 SHA-256（App 解壓後才驗得過） */
   sha256: string;
+  /** 解壓後位元組數 */
   bytes: number;
+  /** 壓縮後位元組數，即實際傳輸量與 content-length */
+  gzipBytes: number;
 };
 
 /**
@@ -55,8 +64,10 @@ class StaticStore {
     for (const [name, asset] of this.assets) {
       files[name] = {
         url: `${baseUrl}/v1/static/${name}`,
+        // sha256 / bytes 為**解壓後**內容，gzipBytes 為傳輸量——見 API_CONTRACT.md §3.1
         sha256: asset.sha256,
         bytes: asset.bytes,
+        gzipBytes: asset.gzipBytes,
       };
     }
     return {
@@ -109,7 +120,7 @@ class StaticStore {
       // 讓 N1 預估到站資料能補上 stationUID
       liveCache.setStopToStation(buildStopToStationMap(built.stations));
 
-      const totalBytes = [...this.assets.values()].reduce((sum, a) => sum + a.bytes, 0);
+      const totalBytes = [...this.assets.values()].reduce((sum, a) => sum + a.gzipBytes, 0);
       console.log(
         `[static] version=${built.version}` +
           `${previousVersion === built.version ? '（未變動）' : ''}　` +
@@ -125,7 +136,8 @@ class StaticStore {
   }
 }
 
-function compressAll(bundle: StaticBundle): Map<string, Asset> {
+/** 匯出僅為了測試——這是純函式，是 sha256／bytes 語意的唯一來源。 */
+export function compressAll(bundle: StaticBundle): Map<string, Asset> {
   const assets = new Map<string, Asset>();
   const parts: Array<[string, unknown]> = [
     ['stations', bundle.stations],
@@ -137,13 +149,14 @@ function compressAll(bundle: StaticBundle): Map<string, Asset> {
   ];
 
   for (const [name, data] of parts) {
-    const json = JSON.stringify(data);
-    const gzipped = gzipSync(Buffer.from(json, 'utf8'), { level: 9 });
+    const json = Buffer.from(JSON.stringify(data), 'utf8');
+    const gzipped = gzipSync(json, { level: 9 });
     assets.set(name, {
       gzipped,
       // 對**未壓縮**內容取雜湊，App 解壓後才能驗證
       sha256: createHash('sha256').update(json).digest('hex'),
-      bytes: gzipped.byteLength,
+      bytes: json.byteLength,
+      gzipBytes: gzipped.byteLength,
     });
   }
 

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "serve": "firebase emulators:start --only functions,firestore",
     "deploy": "firebase deploy --only functions,firestore:rules,firestore:indexes"
   },
@@ -16,6 +17,10 @@
     "@google-cloud/bigquery": "^7.9.0",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
   },
   "comment": "src/core/ 刻意不 import 任何 Firebase 套件，因此 `npm test` 不需要先 npm install。"
 }

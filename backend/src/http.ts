@@ -89,6 +89,40 @@ export function sendError(res: ServerResponse, error: unknown): void {
   });
 }
 
+// MARK: - 內容協商
+
+/**
+ * 依 RFC 9110 §12.5.3 判斷 client 是否接受 gzip。
+ *
+ * **標頭不存在時回 true**——RFC 明訂「未帶 Accept-Encoding 即視為接受任何編碼」。
+ * 這保留了原本的行為，也涵蓋 CDN 回源與 iOS URLSession（一律送 gzip）這兩個實際路徑。
+ * 真正需要 identity 的是明確送出 `identity`、`gzip;q=0` 或空字串的 client。
+ */
+export function acceptsGzip(header: string | undefined): boolean {
+  if (header === undefined) return true;
+
+  let wildcardQ: number | null = null;
+  for (const part of header.split(',')) {
+    const [rawToken, ...params] = part.split(';');
+    const token = rawToken?.trim().toLowerCase();
+    if (!token) continue;
+    if (token === 'gzip') return qValue(params) > 0;
+    if (token === '*') wildcardQ = qValue(params);
+  }
+  return wildcardQ === null ? false : wildcardQ > 0;
+}
+
+/** 取 `;q=` 參數，缺少或格式錯誤時依 RFC 預設為 1。 */
+function qValue(params: string[]): number {
+  for (const param of params) {
+    const [key, value] = param.split('=');
+    if (key?.trim().toLowerCase() !== 'q') continue;
+    const parsed = Number(value?.trim());
+    return Number.isFinite(parsed) ? parsed : 1;
+  }
+  return 1;
+}
+
 // MARK: - 參數解析
 
 export function parseBBox(raw: string): {
