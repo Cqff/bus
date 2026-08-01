@@ -27,7 +27,11 @@ open BusMap.xcodeproj
 
 ## 目前狀態
 
-**全部接 `MockBusAPI`，不需要後端也不需要 TDX 金鑰即可執行。**
+**預設接 `MockBusAPI`，不需要後端也不需要 TDX 金鑰即可執行。**
+要改接真實後端見〈接上真實後端〉。
+
+Mock 的公車**會沿著合成線型移動**，不是寫死的座標——因此不接後端也測得到
+位置推算與動畫。
 
 Mock 刻意涵蓋 `API_CONTRACT.md` §6 列出的全部邊界情況：
 
@@ -52,8 +56,10 @@ BusMap/
 ├─ Models/                        對應 API_CONTRACT 的資料型別
 ├─ Services/
 │  ├─ BusAPI.swift                protocol —— Mock 與正式實作的共同介面
-│  ├─ MockBusAPI.swift            假資料，含全部邊界情況
+│  ├─ MockBusAPI.swift            假資料，含全部邊界情況；公車沿合成線型移動
+│  ├─ LiveBusAPI.swift            正式實作，打 Cloud Run proxy
 │  ├─ LiveBusStore.swift          輪詢邏輯的唯一實作點（15s / 退避 / 降級）
+│  ├─ BusPositionEstimator.swift  兩次定位之間的位置推算
 │  ├─ MyReportsStore.swift        本機回報索引，永不上傳（刪除權的所有權憑據）
 │  └─ LocationService.swift       定位，只申請 When In Use
 ├─ DesignSystem/Theme.swift       顏色與尺寸常數
@@ -63,10 +69,12 @@ BusMap/
 │  ├─ StationDetail/              站位詳情（到站預估 + 回報列表）
 │  ├─ Report/                     回報表單
 │  └─ MyReports/                  我的回報（查看與刪除，履行個資法刪除權）
-└─ Utils/Polyline.swift           Google encoded polyline 解碼
+└─ Utils/
+   ├─ Polyline.swift              Google encoded polyline 解碼
+   └─ RoutePath.swift             線型幾何：投影到線上、沿線推進
 ```
 
-### 三個關鍵設計點
+### 四個關鍵設計點
 
 **1. `ageSec` 一律由伺服器提供，App 不自行計算**
 裝置時鐘偏移會讓「N 秒前」亂跳。`LiveBus.ageSec` 直接來自後端。
@@ -79,16 +87,67 @@ BusMap/
 SwiftUI 的 `Map` 沒有內建 annotation clustering。視野 > 3km 時隱藏公車、
 只留有回報的站位，同時解決效能與畫面雜亂。上限常數在 `MapScreen.busVisibilityMaxSpan`。
 
+**4. 兩次定位之間沿路線線型推算位置**
+TDX 每分鐘才更新、後端每 30 秒輪詢，不推算的話車就是每 30 秒瞬移一次。
+`BusPositionEstimator` 把車投影到它所屬路線的 polyline 上，再沿線前進
+`速度 × 經過秒數`，每 0.5 秒重算一次。
+
+沿**線型**而非沿方位角是關鍵。以真實 TDX 資料實測（2026-08-01，3 條路線、
+18 台車、5 分鐘、78 組連續定位配對，間隔中位數 33 秒），比對推算位置與該車
+下一筆真實定位的距離：
+
+| 做法 | 中位數誤差 | p90 | 平均 |
+|---|---|---|---|
+| 不推算（標記停在原地） | 140.9m | 296.6m | 152.4m |
+| **沿線型推算** | **81.7m** | 251.9m | 105.4m |
+| 沿方位角直線 | 106.7m | 254.1m | 130.5m |
+
+中位數誤差改善 42%，78 組中有 53 組（68%）更接近真實位置。
+
+**剩下的 32% 會變更差**，這是航位推算的本質——公車會臨停、等紅燈、靠站，
+這些都無法從速度與方位角預測。這也是為什麼「N 秒前」標籤必須保留：
+推算讓畫面連續，時間戳才是誠實的來源。
+
+這件事與 `DESIGN.md` §0.1「不假裝更即時」的張力，靠三道防線化解：
+
+| 防線 | 作用 |
+|---|---|
+| `maxOffsetM = 60` | 定位點離線型太遠（停總站、繞道、GPS 飄移）就不推算 |
+| `maxExtrapolationSec = 90` | 超過就凍結，不讓車無限往前滑 |
+| 「N 秒前」照實顯示 | 資料年齡仍來自伺服器，不因推算而變新 |
+
+推算用的經過時間是 `伺服器給的 ageSec + 本機自收到回應後經過的時間`，
+只拿本機時鐘量**差值**，因此不受裝置時鐘偏移影響。
+
 ## 接上真實後端
 
-後端就緒後：
+`Services/LiveBusAPI.swift` 已實作完成。切換方式是設環境變數
+（Xcode → Scheme → Run → Arguments → Environment Variables）：
 
-1. 新增 `Services/LiveBusAPI.swift` 實作 `BusAPI` protocol
-2. 改 `BusMapApp.swift` 一行：`MapScreen(api: LiveBusAPI(baseURL: ...))`
-3. UI 層完全不用動
+```
+BUSMAP_API_BASE_URL = http://localhost:8080
+```
 
-`Models/` 的欄位名稱已對齊 `API_CONTRACT.md`，`JSONDecoder` 設
-`.dateDecodingStrategy = .iso8601` 即可直接解。
+未設或設為空字串時退回 `MockBusAPI`。先在另一個終端機跑後端：
+
+```bash
+cd backend && npm run dev
+```
+
+模擬器連 `http://localhost:8080` 需要 `NSAllowsLocalNetworking`
+（已在 `project.yml` 設定），因為 iOS 預設封鎖明文 HTTP。
+正式環境請填 **Firebase Hosting 的網域**而非 Cloud Run 直連網址，
+否則 CDN 快取不會生效。
+
+### 尚未接上的部分
+
+回報相關功能走 Cloud Functions，而那些函式尚未部署。`LiveBusAPI` 的處理方式：
+
+- `reports` / `aggregates` → 回空集合，地圖與即時公車完全可用
+- `submitReport` / `deleteReport` → 明確拋錯（假裝成功會讓使用者以為自己回報了）
+
+另外 `staticBundle()` 目前**每次啟動都重新下載**，尚未依 manifest 的
+`version` 做本機快取，也還沒驗 `sha256`。檔案裡有對應的 TODO。
 
 ## 第一次開啟預期會遇到的問題
 
@@ -101,6 +160,12 @@ SwiftUI 的 `Map` 沒有內建 annotation clustering。視野 > 3km 時隱藏公
 - **`ForEach` 在 `MapContentBuilder` 內**——需要 iOS 17+，理論上沒問題但值得留意
 - **`.tag(RouteOption?.some(option))`** 的 Optional tag 型別推導在 Picker 中偶爾出錯
 - **`ContentUnavailableView`** 的 init 多載較多，參數順序可能要調
+- **`MapContentBuilder` 內的區域 `let`**——`MapScreen` 的公車 `ForEach` 裡有一行
+  `let position = estimator.position(...)`。result builder 支援區域變數宣告，
+  但若編譯器抱怨，改成把運算收進一個回傳 `some MapContent` 的小函式
+- **`Task.detached` 捕獲 `[RouteShape]`**——`BusPositionEstimator.loadShapes` 在背景
+  解碼線型。`RouteShape` 應為隱式 `Sendable`（同模組、成員皆 Sendable），
+  若嚴格併發檢查不同意，明確加上 `: Sendable`
 
 修好後建議先跑 Preview（每個 View 檔案底部都有 `#Preview`），
 再跑模擬器。模擬器需要 Features → Location → Custom Location 設一個台北座標
