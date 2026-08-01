@@ -72,7 +72,7 @@ final class LiveBusStore {
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.fetchOnce()
-                let interval = await self.currentInterval
+                let interval = self.currentInterval
                 try? await Task.sleep(for: interval)
             }
         }
