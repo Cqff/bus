@@ -357,9 +357,21 @@ struct MapScreen: View {
 
 extension MKCoordinateRegion {
     /// 台北車站周邊，約 2 公里視野。
+    ///
+    /// ⚠️ **`longitudeDelta` 刻意遠小於 `latitudeDelta`。**
+    ///
+    /// MapKit 只會把請求的區域**放大**以填滿畫面，不會縮小：
+    /// 實際緯度跨距 = max(請求緯度, 請求經度 × 畫面高寬比)。
+    ///
+    /// 原本兩者都設 0.018，在 iPhone（高寬比約 2.17）上實測被撐成 0.039，
+    /// 超過 `MapScreen.busVisibilityMaxSpan`（0.027），導致**全新安裝打開
+    /// App 一台公車都看不到**，只顯示「放大地圖以顯示公車」。
+    ///
+    /// 把經度壓到 0.006，各種螢幕比例下（iPhone 2.17、iPad 1.33）緯度都
+    /// 維持是約束條件，實際跨距就等於宣告的 0.018。
     static let taipeiDefault = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 25.0465, longitude: 121.5175),
-        span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
+        span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.006)
     )
 }
 

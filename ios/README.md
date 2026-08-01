@@ -2,9 +2,13 @@
 
 SwiftUI + MapKit，最低支援 iOS 18。
 
-> ⚠️ **這批程式碼是在 Windows 上撰寫的，從未編譯過。**
-> 第一次在 Xcode 打開時預期會有編譯錯誤要修——這是無 Mac 環境下撰寫的必然代價。
-> 見本文件末的〈第一次開啟預期會遇到的問題〉。
+> ✅ **已通過編譯**（Xcode 27.0 / iOS 27.0 SDK，`SWIFT_STRICT_CONCURRENCY: complete`，
+> 2026-08-01）。零錯誤，唯一警告在 `LiveBusStore.swift:75`（`await` 未包含
+> async 操作）。App 也已實際在 iOS 27 模擬器上啟動。
+>
+> 若你的 Xcode 顯示 `Cannot find 'X' in scope` 之類的紅字，多半是專案在
+> `xcodegen generate` 之前開啟、索引未更新——⌘Q 完全結束 Xcode 後重新
+> `xcodegen generate && open BusMap.xcodeproj` 即可。
 
 ## 開啟專案
 
@@ -169,24 +173,34 @@ cd backend && npm run dev
 另外 `staticBundle()` 目前**每次啟動都重新下載**，尚未依 manifest 的
 `version` 做本機快取，也還沒驗 `sha256`。檔案裡有對應的 TODO。
 
-## 第一次開啟預期會遇到的問題
+## 驗證狀態
 
-因為這批程式碼未經編譯，以下是最可能需要修的地方：
+以 Xcode 27.0 / iOS 27.0 SDK 實測（2026-08-01）：
 
-- **`Annotation("", coordinate:)` 的空字串標題**——若造成版面問題，改用
-  `Annotation(coordinate:content:label:)` 並給 `EmptyView()`
-- **`@Observable` + `@MainActor` 的並發檢查**——`SWIFT_STRICT_CONCURRENCY: complete`
-  下 `LocationService` 的 delegate 回呼可能需要調整 isolation 標註
-- **`ForEach` 在 `MapContentBuilder` 內**——需要 iOS 17+，理論上沒問題但值得留意
-- **`.tag(RouteOption?.some(option))`** 的 Optional tag 型別推導在 Picker 中偶爾出錯
-- **`ContentUnavailableView`** 的 init 多載較多，參數順序可能要調
-- **`MapContentBuilder` 內的區域 `let`**——`MapScreen` 的公車 `ForEach` 裡有一行
-  `let position = estimator.position(...)`。result builder 支援區域變數宣告，
-  但若編譯器抱怨，改成把運算收進一個回傳 `some MapContent` 的小函式
-- **`Task.detached` 捕獲 `[RouteShape]`**——`BusPositionEstimator.loadShapes` 在背景
-  解碼線型。`RouteShape` 應為隱式 `Sendable`（同模組、成員皆 Sendable），
-  若嚴格併發檢查不同意，明確加上 `: Sendable`
+| 項目 | 結果 |
+|---|---|
+| 編譯（`SWIFT_STRICT_CONCURRENCY: complete`）| ✅ 零錯誤 |
+| iOS 27 模擬器啟動 | ✅ 地圖、標記、狀態列皆正常 |
+| 公車位置推算 | ✅ 25 秒內標記沿線移動；`stale` 的車正確凍結不推算 |
 
-修好後建議先跑 Preview（每個 View 檔案底部都有 `#Preview`），
-再跑模擬器。模擬器需要 Features → Location → Custom Location 設一個台北座標
+唯一警告在 `LiveBusStore.swift:75`（`await` 未包含 async 操作），既有程式碼。
+
+原先預期會踩到的幾個點實際上都沒問題，記錄下來以免日後重複懷疑：
+`MapContentBuilder` 內的區域 `let`、`Task.detached` 捕獲 `[RouteShape]`
+（隱式 `Sendable` 成立）、`@Observable` + `@MainActor` 的並發檢查、
+`Annotation("", coordinate:)` 的空字串標題。
+
+模擬器需要 Features → Location → Custom Location 設一個台北座標
 （25.0465, 121.5175）才能測回報功能的 150 公尺驗證。
+
+命令列驗證（不需要開 Xcode）：
+
+```bash
+cd ios
+xcodebuild -project BusMap.xcodeproj -scheme BusMap -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+```
+
+⚠️ 若機器上裝的是 **Xcode-beta**，`xcode-select` 的路徑要指向
+`/Applications/Xcode-beta.app/Contents/Developer`，或直接用
+`DEVELOPER_DIR=... xcodebuild ...` 免去 `sudo`。
