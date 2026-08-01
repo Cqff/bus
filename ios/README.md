@@ -8,7 +8,8 @@ SwiftUI + MapKit，最低支援 iOS 18。
 
 ## 開啟專案
 
-**`.xcodeproj` 不進版控**，由 `project.yml` 產生。clone 後第一件事：
+**`.xcodeproj` 與 `BusMap/Info.plist` 都不進版控**，兩者皆由 `project.yml`
+產生。clone 後第一件事：
 
 ```bash
 brew install xcodegen
@@ -20,10 +21,14 @@ open BusMap.xcodeproj
 `project.yml` 是專案結構的唯一真實來源。新增檔案不需要改它——`sources`
 指的是整個 `BusMap/` 目錄，遞迴納入。
 
-### 為什麼不把 .xcodeproj 進版控
+### 為什麼不把 .xcodeproj 與 Info.plist 進版控
 
-`project.pbxproj` 是難以合併的機器產生檔，而且 Xcode 會把開發者個人的
-`DEVELOPMENT_TEAM` 寫進去，下次 `xcodegen generate` 又洗掉，來回衝突。
+兩者都是 `project.yml` 的產物，同時維護兩份必然分歧。`project.pbxproj`
+更是難以合併的機器產生檔，而且 Xcode 會把開發者個人的 `DEVELOPMENT_TEAM`
+寫進去，下次 `xcodegen generate` 又洗掉，來回衝突。
+
+改 Info.plist 的內容請改 `project.yml` 的 `targets.BusMap.info.properties`，
+不要直接編輯產生出來的檔案——那份改動會在下次 generate 時消失。
 
 ### 設定簽章
 
@@ -36,9 +41,9 @@ Signing & Capabilities 選一次自己的 team 即可（該設定寫在不進版
 1. Xcode → New Project → iOS App → SwiftUI，最低版本設 iOS 18
 2. 刪掉範本產生的 `ContentView.swift` 與 `*App.swift`
 3. 把 `ios/BusMap/` 整個資料夾拖進專案（勾 Create groups）
-4. Info.plist 依 `project.yml` 的 `info.properties` 補齊，其中
-   `NSLocationWhenInUseUsageDescription` 與 `NSAppTransportSecurity`
-   （本機後端需要）不可漏
+4. 自行建立 Info.plist，內容依 `project.yml` 的 `info.properties` 補齊
+   （該檔不在版控裡）。其中 `NSLocationWhenInUseUsageDescription` 與
+   `NSAppTransportSecurity`（本機後端需要）不可漏
 
 ## 目前狀態
 
