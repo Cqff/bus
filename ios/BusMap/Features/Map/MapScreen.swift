@@ -40,10 +40,13 @@ struct MapScreen: View {
         Map(position: $camera) {
             UserAnnotation()
 
-            if let coords = routePolyline, coords.count > 1 {
-                MapPolyline(coordinates: coords)
-                    .stroke(Theme.bus.opacity(0.7),
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+            if let line = routeLine, line.coordinates.count > 1 {
+                MapPolyline(coordinates: line.coordinates)
+                    .stroke(Theme.bus.opacity(line.isApproximate ? 0.45 : 0.7),
+                            style: line.isApproximate
+                                ? StrokeStyle(lineWidth: 3, lineCap: .round,
+                                              lineJoin: .round, dash: [2, 7])
+                                : StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
             }
 
             ForEach(visibleStations) { station in
@@ -239,14 +242,19 @@ struct MapScreen: View {
         return inView.filter { aggregates[$0.stationUID]?.hasReports == true }
     }
 
-    private var routePolyline: [CLLocationCoordinate2D]? {
+    /// 路線線型。`isApproximate` 表示後端沒給線型、改以站點直線相連，
+    /// 由呼叫端畫成虛線——示意線長得像實際路徑會誤導使用者。
+    private var routeLine: (coordinates: [CLLocationCoordinate2D], isApproximate: Bool)? {
         guard let bundle, let route = selectedRoute else { return nil }
         if let shape = bundle.shape(routeUID: route.routeUID, direction: selectedDirection) {
-            return Polyline.decode(shape.encodedPolyline)
+            return (Polyline.decode(shape.encodedPolyline), false)
         }
-        // 無線型資料時以站點連線示意
-        return bundle.routeStops(routeUID: route.routeUID, direction: selectedDirection)?
-                     .stops.map(\.coordinate)
+        // 無線型資料時以站點連線示意。
+        // 務必依 sequence 排序：API_CONTRACT 沒有保證 stops[] 的陣列順序等於站序，
+        // 直接照陣列順序連線會讓路線在地圖上對角亂穿。
+        guard let stops = bundle.routeStops(routeUID: route.routeUID,
+                                            direction: selectedDirection)?.stops else { return nil }
+        return (stops.sorted { $0.sequence < $1.sequence }.map(\.coordinate), true)
     }
 
     private func directionDestination(_ route: BusRoute) -> String {

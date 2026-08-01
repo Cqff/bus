@@ -41,6 +41,7 @@ Mock 刻意涵蓋 `API_CONTRACT.md` §6 列出的全部邊界情況：
 | 同站 4+ 站牌 | 台北車站有 6 個 stops |
 | `conflicting` | 台北車站的誤點回報，以及送出誤點回報後的結果頁 |
 | 距離太遠被拒 | `scenario.simulateTooFar = true` |
+| 無線型資料 | Mock 的 `shapes` 是空的，路線改以站點連線並畫成**虛線**——示意線不該長得像實際路徑 |
 | 頻率限制 | `scenario.simulateRateLimit = true` |
 | 刪除時所有權驗證失敗 | `scenario.simulateNotOwner = true` |
 

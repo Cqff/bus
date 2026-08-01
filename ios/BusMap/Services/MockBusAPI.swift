@@ -277,6 +277,34 @@ extension MockBusAPI {
         ]
     }
 
+    /// 每條路線的**去程站序**（回程直接反向）。
+    ///
+    /// 舊版把「全部站位、依宣告順序」當成每條路線的站序，於是每條路線都畫出同一條
+    /// 在市區裡對角亂穿又自我交叉的線。這裡改成各線只經過部分站位、且沿地理走向排列，
+    /// 讓 mock 畫出來的形狀至少像一條公車路線。
+    private static let routePaths: [String: [String]] = [
+        "TPE10132": ["TPE9804", "TPE9802", "TPE9800", "TPE9803"],  // 270  西門→北門→北車→中山市場
+        "TPE10874": ["TPE9804", "TPE9801", "TPE9800", "TPE9803"],  // 307  西門→公園路→北車→中山市場
+        "TPE15521": ["TPE9804", "TPE9802", "TPE9800"],             // 藍7  西門→北門→北車（北車為終點）
+        "TPE10005": ["TPE9801", "TPE9800", "TPE9802"],             // 12   公園路→北車→北門
+        "TPE19001": ["TPE9803", "TPE9800"],                        // 小12 中山市場→北車（只有兩站）
+    ]
+
+    /// 某站位停靠的所有站牌，由 `routePaths` 反推，確保與站序資料一致。
+    private static func stopRefs(at stationUID: String) -> [StopRef] {
+        routePaths.filter { $0.value.contains(stationUID) }
+                  .sorted { $0.key < $1.key }
+                  .flatMap { routeUID, _ -> [StopRef] in
+                      Direction.allCases.map { dir in
+                          StopRef(stopUID: "\(stationUID)-\(routeUID)-\(dir.rawValue)",
+                                  routeUID: routeUID,
+                                  direction: dir,
+                                  operatorID: "10012",
+                                  bearing: dir == .outbound ? "S" : "N")
+                      }
+                  }
+    }
+
     static func bundle(center c: CLLocationCoordinate2D) -> StaticBundle {
         // 台北車站刻意給 6 個 stops，驗證「同站 4+ 站牌」的合併 UI
         let taipeiMain = Station(
@@ -291,19 +319,18 @@ extension MockBusAPI {
                 StopRef(stopUID: "TPE50881", routeUID: "TPE10005", direction: .outbound, operatorID: "10012", bearing: "W"),
             ]
         )
+        // 位移依實際地理方位給：北門在西北、中山市場在東北、公園路在南、西門在西南。
+        // 名稱與方位對不上的假資料在地圖上一眼就看得出來。
         let others = [
-            ("TPE9801", "公園路",   0.0038, -0.0012),
-            ("TPE9802", "北門",    -0.0021, -0.0044),
-            ("TPE9803", "中山市場",  0.0064,  0.0028),
-            ("TPE9804", "西門",    -0.0055,  0.0031),
+            ("TPE9801", "公園路",  -0.0024,  0.0008),
+            ("TPE9802", "北門",     0.0022, -0.0060),
+            ("TPE9803", "中山市場",  0.0058,  0.0032),
+            ("TPE9804", "西門",    -0.0050, -0.0082),
         ].map { uid, name, dLat, dLon in
             Station(
                 stationUID: uid, name: name, nameEn: nil,
                 lat: c.latitude + dLat, lon: c.longitude + dLon,
-                stops: [
-                    StopRef(stopUID: "\(uid)-A", routeUID: "TPE10132", direction: .outbound, operatorID: "10012", bearing: "S"),
-                    StopRef(stopUID: "\(uid)-B", routeUID: "TPE10874", direction: .inbound,  operatorID: "10015", bearing: "N"),
-                ]
+                stops: stopRefs(at: uid)
             )
         }
 
@@ -322,27 +349,32 @@ extension MockBusAPI {
 
         let stations = [taipeiMain] + others
 
+        let stationByUID = Dictionary(uniqueKeysWithValues: stations.map { ($0.stationUID, $0) })
+
         let routeStops = routes.flatMap { route in
-            Direction.allCases.map { dir in
-                RouteStops(
+            Direction.allCases.compactMap { dir -> RouteStops? in
+                guard let path = routePaths[route.routeUID] else { return nil }
+                let ordered = dir == .outbound ? path : Array(path.reversed())
+                return RouteStops(
                     routeUID: route.routeUID,
                     direction: dir,
-                    stops: stations.enumerated().map { idx, st in
-                        SequencedStop(stopUID: "\(st.stationUID)-\(route.routeUID)-\(dir.rawValue)",
-                                      stationUID: st.stationUID,
-                                      sequence: idx + 1,
-                                      lat: st.lat, lon: st.lon, name: st.name)
+                    stops: ordered.enumerated().compactMap { idx, uid -> SequencedStop? in
+                        guard let st = stationByUID[uid] else { return nil }
+                        return SequencedStop(stopUID: "\(uid)-\(route.routeUID)-\(dir.rawValue)",
+                                             stationUID: uid,
+                                             sequence: idx + 1,
+                                             lat: st.lat, lon: st.lon, name: st.name)
                     }
                 )
             }
         }
 
         return StaticBundle(
-            version: "mock-2026-07-31",
+            version: "mock-2026-08-01",
             stations: stations,
             routes: routes,
             routeStops: routeStops,
-            shapes: []   // Mock 不提供線型，地圖改以站點連線示意
+            shapes: []   // Mock 不提供線型，地圖改以站點連線示意（畫成虛線）
         )
     }
 }
